@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Archive, ArchiveRestore, ArrowLeft, CalendarDays, Check, Clock3, Trash2 } from 'lucide-react'
+import { Archive, ArchiveRestore, ArrowLeft, CalendarDays, Check, Clock3, FileText, Image as ImageIcon, Trash2 } from 'lucide-react'
 import { db } from '../db/db'
 import { deleteImage, deleteMemo, setMemoFlag, updateMemo } from '../db/repo'
-import type { Memo } from '../db/types'
+import { memoKind, type Memo, type MemoKind } from '../db/types'
 import { useDebouncedCallback } from '../lib/hooks'
 import { formatDate } from '../lib/utils'
-import { Button, Spinner } from '../components/ui'
+import { Button, Segmented, Spinner } from '../components/ui'
 import { useFeedback } from '../components/ui/Feedback'
 import { FavoriteButton, ImageAttach, TagChip, TagInput, UrlList } from '../components/memo/MemoParts'
 import { MoveMemoSelect } from '../components/memo/MoveMemoSelect'
@@ -60,7 +60,11 @@ function MemoEditor({ memo, category, access }: { memo: Memo; category: Category
   }, [content])
 
   const backTo = category ? `/c/${category.id}` : '/quick'
-  const isGallery = category?.type === 'gallery'
+  const kind = memoKind(memo, category)
+  const isGallery = kind === 'card'
+  const setKind = (k: MemoKind) => {
+    if (k !== kind) run(() => updateMemo(memo.id, { kind: k }))
+  }
 
   const onImages = (ids: string[]) => {
     const removed = memo.imageIds.filter((x) => !ids.includes(x))
@@ -168,6 +172,17 @@ function MemoEditor({ memo, category, access }: { memo: Memo; category: Category
         <aside className="space-y-5">
           <fieldset disabled={!canEdit} className="card min-w-0 space-y-6 p-6">
             <div>
+              {sideLabel('모양', isGallery ? '사진이 크게 보여요' : '글 위주로 보여요')}
+              <Segmented<MemoKind>
+                value={kind}
+                onChange={setKind}
+                options={[
+                  { value: 'note', label: '메모', icon: <FileText size={14} /> },
+                  { value: 'card', label: '카드', icon: <ImageIcon size={14} /> },
+                ]}
+              />
+            </div>
+            <div className="border-t border-line pt-5">
               {sideLabel('태그')}
               <TagInput tags={memo.tags} onChange={(tags) => run(() => updateMemo(memo.id, { tags }))} />
             </div>

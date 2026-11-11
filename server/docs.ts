@@ -137,6 +137,7 @@ export function applyOps(userId: string, ops: Op[]): Promise<{ applied: Applied[
         await q.run('DELETE FROM docs WHERE tbl = ? AND id = ?', [t, op.id])
         if (t === 'categories') {
           await q.run('DELETE FROM shares WHERE category_id = ?', [op.id])
+          await q.run('DELETE FROM category_chats WHERE category_id = ?', [op.id])
           roleCache.delete(op.id)
         }
         applied.push({ op, audience })
@@ -234,6 +235,7 @@ export function resetOwnData(userId: string): Promise<string[]> {
     for (const c of cats) {
       for (const u of await audienceOf(c.id, userId, q)) affected.add(u)
       await q.run('DELETE FROM shares WHERE category_id = ?', [c.id])
+      await q.run('DELETE FROM category_chats WHERE category_id = ?', [c.id])
     }
     await q.run('DELETE FROM docs WHERE owner = ?', [userId])
     await q.run('DELETE FROM settings WHERE user_id = ?', [userId])

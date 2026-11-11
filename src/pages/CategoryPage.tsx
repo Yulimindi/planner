@@ -1,17 +1,20 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Archive, ArchiveRestore, ChevronRight, Eye, LayoutGrid, LogOut, Pencil, Share2, Trash2, Users } from 'lucide-react'
+import { Archive, ArchiveRestore, ChevronRight, Eye, LayoutGrid, LogOut, MessageCircle, Pencil, Share2, Trash2, Users } from 'lucide-react'
+import { ChatPanel } from '../components/share/ChatPanel'
+import { useCategoryChat } from '../sync/chats'
 import { db } from '../db/db'
 import { CATEGORY_TYPE_LABEL } from '../db/types'
 import { Button, IconButton, Spinner } from '../components/ui'
 import { ITEM_UNIT } from '../components/category/CategoryCard'
 import { wash, washLine } from '../lib/colors'
-import { useCategoryCounts } from '../lib/hooks'
+import { useCategoryCounts, useMediaQuery } from '../lib/hooks'
 import { cn } from '../lib/utils'
 import { useDisplayName } from '../components/user/UserBits'
 
-const roundBtn = 'size-9 rounded-full! border border-line bg-card/80 text-ink-2 shadow-soft'
+const CHAT_OPEN_KEY = 'ma:chatOpen'
+const roundBtn ='size-9 rounded-full! border border-line bg-card/80 text-ink-2 shadow-soft'
 import { useFeedback } from '../components/ui/Feedback'
 import { CategoryIconBadge } from '../components/category/CategoryForm'
 import { useCategoryActions } from '../components/category/useCategoryActions'
@@ -44,6 +47,39 @@ export default function CategoryPage() {
   const isOwner = role === 'owner'
   const isShared = !!access && (role !== 'owner' || access.members.length > 0)
   const peers = usePresence(category?.id, isShared, location.pathname)
+
+  // 공유 페이지 대화창: 넓은 화면에서는 기본으로 열어 두고, 마지막 선택을 기억한다
+  const wide = useMediaQuery('(min-width: 1280px)')
+  const [chatPref, setChatPref] = useState<boolean | null>(() => {
+    try {
+      const v = localStorage.getItem(CHAT_OPEN_KEY)
+      return v === null ? null : v === '1'
+    } catch {
+      return null
+    }
+  })
+  // 좁은 화면에서는 본문을 가리므로 저장된 선택과 관계없이 닫힌 채로 시작
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const chatOpen = isShared && (wide ? (chatPref ?? true) : drawerOpen)
+  const setChatOpen = (v: boolean) => {
+    if (v) setUnread(0)
+    if (!wide) {
+      setDrawerOpen(v)
+      return
+    }
+    setChatPref(v)
+    try {
+      localStorage.setItem(CHAT_OPEN_KEY, v ? '1' : '0')
+    } catch {
+      /* 저장 못 해도 동작에는 문제 없음 */
+    }
+  }
+  const [unread, setUnread] = useState(0)
+  const chatOpenRef = useRef(chatOpen)
+  chatOpenRef.current = chatOpen
+  const chat = useCategoryChat(id, isShared, () => {
+    if (!chatOpenRef.current) setUnread((n) => n + 1)
+  })
 
   if (category === undefined) return <Spinner />
   if (category === null) return <NotFoundPage message="카테고리를 찾을 수 없어요." />
@@ -104,6 +140,24 @@ export default function CategoryPage() {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <PeerAvatars peers={peers} className="mr-2" />
+              {isShared && (
+                <span className="relative">
+                  <Button
+                    size="sm"
+                    className={chatOpen ? 'border-accent/50 bg-accent-soft text-ink' : undefined}
+                    icon={<MessageCircle size={15} />}
+                    onClick={() => setChatOpen(!chatOpen)}
+                    aria-pressed={chatOpen}
+                  >
+                    대화
+                  </Button>
+                  {!chatOpen && unread > 0 && (
+                    <span className="pointer-events-none absolute -top-1.5 -right-1.5 min-w-[18px] rounded-full border-2 border-card bg-primary px-1 text-center text-[10.5px] leading-[14px] font-bold text-primary-ink" aria-label={`새 메시지 ${unread}개`}>
+                      {unread > 99 ? '99+' : unread}
+                    </span>
+                  )}
+                </span>
+              )}
               {isOwner ? (
                 <>
                   {category.archived && (
@@ -123,13 +177,35 @@ export default function CategoryPage() {
           </div>
         </section>
 
-        {category.type === 'table' ? (
-          <TableView category={category} />
-        ) : category.type === 'checklist' ? (
-          <ChecklistView category={category} />
-        ) : (
-          <MemoCollectionView category={category} />
-        )}
+        <div className={cn(chatOpen && 'items-start xl:grid xl:grid-cols-[minmax(0,1fr)_360px] xl:gap-6')}>
+          <div className="min-w-0 @container">
+            {category.type === 'table' ? (
+              <>
+                <TableView category={category} />
+                <MemoCollectionView category={category} embedded />
+              </>
+            ) : category.type === 'checklist' ? (
+              <>
+                <ChecklistView category={category} />
+                <MemoCollectionView category={category} embedded />
+              </>
+            ) : (
+              <MemoCollectionView category={category} />
+            )}
+          </div>
+          {chatOpen && (
+            <>
+              {/* 좁은 화면: 오른쪽에서 밀려 나오는 패널 */}
+              <div className="fixed inset-0 z-40 bg-[#2f2b28]/25 xl:hidden" onClick={() => setChatOpen(false)} aria-hidden />
+              <ChatPanel
+                chat={chat}
+                peers={peers}
+                onClose={() => setChatOpen(false)}
+                className="fixed inset-y-0 right-0 z-50 w-full max-w-[380px] rounded-none! xl:sticky xl:top-6 xl:z-auto xl:h-[calc(100dvh-120px)] xl:max-w-none xl:rounded-[var(--radius-card)]!"
+              />
+            </>
+          )}
+        </div>
         {isShared && <CursorLayer peers={peers} />}
         {isOwner && <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} category={category} />}
       </div>

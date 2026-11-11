@@ -145,6 +145,15 @@ export async function initSchema() {
       )`,
       'CREATE INDEX IF NOT EXISTS messages_to ON messages(to_id, created_at)',
       'CREATE INDEX IF NOT EXISTS messages_from ON messages(from_id, created_at)',
+      // 공유 페이지 대화 (카테고리마다 하나의 대화방)
+      `CREATE TABLE IF NOT EXISTS category_chats (
+        id TEXT PRIMARY KEY,
+        category_id TEXT NOT NULL,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        body TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      )`,
+      'CREATE INDEX IF NOT EXISTS category_chats_cat ON category_chats(category_id, created_at)',
     ],
     'write',
   )

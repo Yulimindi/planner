@@ -13,6 +13,7 @@ import { accessInfo, applyOps, assertOwner, audienceOf, resetOwnData, roleFor, s
 import { attachRealtime, revalidateRooms, sendToAll, sendToUsers, updateClientUser } from './realtime.ts'
 import { acceptFriend, listFriends, removeRelation, requestFriend } from './friends.ts'
 import { deleteMessage, listMessages, openMessage, sendMessage, unreadCount } from './messages.ts'
+import { deleteChat, listChats, postChat } from './chats.ts'
 
 const PORT = Number(process.env.PORT ?? 3001)
 const here = dirname(fileURLToPath(import.meta.url))
@@ -251,6 +252,28 @@ app.delete('/api/messages/:id', requireAuth, async (req, res) => {
   await deleteMessage(me.id, String(req.params.id))
   sendToUsers([me.id], { type: 'messages', event: 'deleted' }, clientId(req))
   res.json({ ok: true, unread: await unreadCount(me.id) })
+})
+
+/* ── 공유 페이지 대화 ───────────────────────────────────── */
+app.get('/api/chats/:categoryId', requireAuth, async (req, res) => {
+  const before = Number(req.query.before)
+  res.json(await listChats(userOf(req).id, String(req.params.categoryId), Number.isFinite(before) && before > 0 ? before : undefined))
+})
+
+app.post('/api/chats/:categoryId', requireAuth, json, async (req, res) => {
+  const categoryId = String(req.params.categoryId)
+  const body = req.body?.body
+  if (typeof body !== 'string') throw new HttpError(400, '내용을 입력해 주세요.')
+  const item = await postChat(userOf(req), categoryId, body)
+  sendToUsers(await audienceOf(categoryId, ''), { type: 'chat', event: 'new', categoryId, item }, clientId(req))
+  res.json({ item })
+})
+
+app.delete('/api/chats/message/:id', requireAuth, async (req, res) => {
+  const id = String(req.params.id)
+  const categoryId = await deleteChat(userOf(req).id, id)
+  if (categoryId) sendToUsers(await audienceOf(categoryId, ''), { type: 'chat', event: 'deleted', categoryId, id }, clientId(req))
+  res.json({ ok: true })
 })
 
 /* ── 공유 ───────────────────────────────────────────────── */

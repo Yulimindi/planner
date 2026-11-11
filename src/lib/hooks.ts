@@ -64,7 +64,10 @@ export function useCategoryCounts(): Record<string, number> {
       const add = (id: string | null) => {
         if (id) counts[id] = (counts[id] ?? 0) + 1
       }
-      await db.memos.each((m) => { if (!m.archived) add(m.categoryId) })
+      // 표·체크리스트에 함께 적은 메모는 행/항목 개수에 섞지 않는다
+      const listTypes = new Set<string>()
+      await db.categories.each((c) => { if (c.type === 'table' || c.type === 'checklist') listTypes.add(c.id) })
+      await db.memos.each((m) => { if (!m.archived && !(m.categoryId && listTypes.has(m.categoryId))) add(m.categoryId) })
       await db.rows.each((r) => add(r.categoryId))
       await db.checklist.each((i) => add(i.categoryId))
       return counts

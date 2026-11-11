@@ -17,10 +17,15 @@ export interface Category {
   updatedAt: number
 }
 
+/** 메모 모양: 글 중심(note) / 사진 중심 카드(card) */
+export type MemoKind = 'note' | 'card'
+
 /** 일반 메모 / 갤러리 카드 / 빠른 메모(categoryId = null) 공용 엔티티 */
 export interface Memo {
   id: string
   categoryId: string | null
+  /** 없으면 카테고리 형식을 따른다 (갤러리 → card, 그 외 → note) */
+  kind?: MemoKind
   title: string
   content: string
   tags: string[]
@@ -110,6 +115,11 @@ export const DEFAULT_SETTINGS: AppSettings = {
   theme: 'ivory',
   sidebarCollapsed: false,
   viewModes: {},
+}
+
+/** 한 카테고리 안에서 카드와 메모를 섞어 쓸 수 있도록 메모마다 모양을 정한다 */
+export function memoKind(memo: Pick<Memo, 'kind'>, category: Pick<Category, 'type'> | null | undefined): MemoKind {
+  return memo.kind ?? (category?.type === 'gallery' ? 'card' : 'note')
 }
 
 export const CATEGORY_TYPE_LABEL: Record<CategoryType, string> = {

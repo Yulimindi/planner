@@ -485,7 +485,7 @@ function ListRows({ columns, rows, highlight, onOpen, canEdit }: { columns: Colu
 function GalleryRows({ columns, rows, highlight, onOpen }: { columns: Column[]; rows: Row[]; highlight: string | null; onOpen: (id: string) => void }) {
   const imgCol = columns.find((c) => c.type === 'image')
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 @lg:grid-cols-3 @3xl:grid-cols-4">
       {rows.map((r) => {
         const { title, titleCol } = rowTitle(r, columns)
         const img = imgCol ? r.cells[imgCol.id] : null
