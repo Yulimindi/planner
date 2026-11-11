@@ -80,7 +80,7 @@ export function ShareModal({ open, onClose, category }: { open: boolean; onClose
       </form>
 
       <Label>함께하는 사람</Label>
-      <ul className="divide-y divide-line rounded-xl border border-line">
+      <ul className="divide-y divide-line rounded-[var(--radius-ctl)] border border-line">
         <li className="flex items-center gap-3 px-3 py-2.5">
           <Avatar uid={access?.ownerId ?? ''} name={access?.ownerName ?? '나'} />
           <span className="flex-1 text-[14px]">{access?.ownerName ?? '나'} <span className="text-muted">(나)</span></span>

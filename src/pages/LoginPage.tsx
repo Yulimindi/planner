@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { LogIn, UserPlus } from 'lucide-react'
+import { LibraryBig, LogIn, UserPlus } from 'lucide-react'
 import { useAuth } from '../auth/AuthProvider'
 import { Button, Input, Label, Segmented } from '../components/ui'
 
@@ -46,17 +46,20 @@ export default function LoginPage({ notice }: { notice?: string }) {
   }
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-app px-4 py-10">
-      <div className="w-full max-w-sm">
-        <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-accent-soft">
-            <img src="/favicon.svg" alt="" className="size-10" />
+    <div className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-app px-4 py-10">
+      {/* 은은한 곡선 배경 */}
+      <div aria-hidden className="pointer-events-none absolute -top-40 -right-40 size-[620px] rounded-full" style={{ background: 'radial-gradient(closest-side, var(--glow), transparent)' }} />
+      <div aria-hidden className="pointer-events-none absolute -bottom-48 -left-40 size-[520px] rounded-full opacity-70" style={{ background: 'radial-gradient(closest-side, var(--accent-soft), transparent)' }} />
+      <div className="relative w-full max-w-[400px]">
+        <div className="mb-9 text-center">
+          <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-full bg-accent-soft text-accent">
+            <LibraryBig size={30} strokeWidth={1.5} />
           </div>
-          <h1 className="text-[26px] font-semibold tracking-tight">My Archive</h1>
-          <p className="mt-1 text-[14px] text-muted">생각과 계획을 차곡차곡 모아두는 나만의 아카이브</p>
+          <h1 className="text-[32px] font-bold tracking-[-0.03em]">My Archive</h1>
+          <p className="mt-2 text-[15px] text-ink-2/80">생각과 계획을 차곡차곡 모아두는 나만의 아카이브</p>
         </div>
 
-        <form onSubmit={submit} className="card space-y-4 p-6">
+        <form onSubmit={submit} className="card space-y-5 p-7 shadow-lift">
           <div className="flex justify-center">
             <Segmented<Mode>
               value={mode}
@@ -64,7 +67,7 @@ export default function LoginPage({ notice }: { notice?: string }) {
               options={[{ value: 'login', label: '로그인' }, { value: 'signup', label: '회원가입' }]}
             />
           </div>
-          {notice && mode === 'login' && <p className="rounded-xl bg-side px-3 py-2 text-[13px] text-muted">{notice}</p>}
+          {notice && mode === 'login' && <p className="rounded-[var(--radius-ctl)] bg-side px-3 py-2 text-[13px] text-muted">{notice}</p>}
           <div>
             <Label>아이디</Label>
             <Input value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" autoFocus maxLength={20} />

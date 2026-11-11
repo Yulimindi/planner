@@ -2,8 +2,9 @@ import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ExternalLink, Image as ImageIcon, ImagePlus, Link2, Loader2, Star, Tag, X } from 'lucide-react'
 import { useImageUrl } from '../../lib/hooks'
-import { cn, displayUrl, excerpt, isSafeUrl, normalizeUrl, relativeTime } from '../../lib/utils'
-import { getPastel } from '../../lib/colors'
+import { cn, displayUrl, excerpt, isSafeUrl, mmdd, normalizeUrl, relativeTime } from '../../lib/utils'
+import { getPastel, tagPastel, tint } from '../../lib/colors'
+import { CategoryIcon } from '../../lib/icons'
 import { saveImage, setMemoFlag } from '../../db/repo'
 import { useFeedback } from '../ui/Feedback'
 import { IconButton, Input } from '../ui'
@@ -71,12 +72,12 @@ export function ImageAttach({ ids, onChange, large }: { ids: string[]; onChange:
         setDragOver(false)
         picker.handleFiles(e.dataTransfer.files)
       }}
-      className={cn('rounded-2xl transition', dragOver && 'ring-2 ring-accent-soft')}
+      className={cn('rounded-[var(--radius-card)] transition', dragOver && 'ring-2 ring-accent-soft')}
     >
       {picker.input}
-      <div className={cn('grid gap-2', large ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-3 sm:grid-cols-5')}>
+      <div className={cn('grid gap-2', large ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-3')}>
         {ids.map((id, i) => (
-          <div key={id} className="group relative aspect-square overflow-hidden rounded-xl border border-line">
+          <div key={id} className="group relative aspect-square overflow-hidden rounded-[var(--radius-ctl)] border border-line">
             <StoredImage id={id} className="size-full" />
             <div className="absolute inset-x-1 top-1 flex justify-between opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100">
               {i > 0 ? (
@@ -106,7 +107,7 @@ export function ImageAttach({ ids, onChange, large }: { ids: string[]; onChange:
           type="button"
           onClick={picker.open}
           disabled={picker.busy}
-          className="flex aspect-square flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-line text-[12px] text-muted transition hover:bg-hover hover:text-ink"
+          className="flex aspect-square flex-col items-center justify-center gap-1 rounded-[var(--radius-ctl)] border border-dashed border-line-strong text-[12px] whitespace-nowrap text-muted transition hover:bg-hover hover:text-ink"
         >
           {picker.busy ? <Loader2 size={18} className="animate-spin" /> : <ImagePlus size={18} />}
           이미지 추가
@@ -117,10 +118,12 @@ export function ImageAttach({ ids, onChange, large }: { ids: string[]; onChange:
 }
 
 /* ── 태그 ───────────────────────────────────────────────── */
-export function TagChip({ tag, onRemove }: { tag: string; onRemove?: () => void }) {
+/** 태그마다 고정된 파스텔색 칩 */
+export function TagChip({ tag, onRemove, hash = true }: { tag: string; onRemove?: () => void; hash?: boolean }) {
+  const p = tagPastel(tag)
   return (
-    <span className="chip bg-side text-muted">
-      #{tag}
+    <span className="chip max-w-36 truncate" style={{ background: `color-mix(in srgb, ${p.bg} var(--tint), var(--card-bg))`, color: p.fg }}>
+      {hash ? '#' : ''}{tag}
       {onRemove && (
         <button type="button" onClick={onRemove} aria-label={`${tag} 태그 삭제`} className="hover:text-ink">
           <X size={12} />
@@ -190,7 +193,7 @@ export function UrlList({ urls, onChange }: { urls: string[]; onChange: (urls: s
   return (
     <div className="space-y-2">
       {urls.map((u) => (
-        <div key={u} className="flex items-center gap-2 rounded-xl border border-line px-3 py-2 text-[13px]">
+        <div key={u} className="flex items-center gap-2 rounded-[var(--radius-ctl)] border border-line px-3 py-2 text-[13px]">
           <Link2 size={14} className="shrink-0 text-muted" />
           <SafeLink url={u} className="min-w-0 flex-1 truncate text-ink underline-offset-2 hover:underline" />
           <ExternalLink size={13} className="shrink-0 text-muted" />
@@ -212,7 +215,7 @@ export function UrlList({ urls, onChange }: { urls: string[]; onChange: (urls: s
           placeholder="https://example.com"
           className="h-9"
         />
-        <button type="button" onClick={add} className="shrink-0 rounded-xl border border-line px-3 text-[13px] text-muted hover:bg-hover hover:text-ink">
+        <button type="button" onClick={add} className="shrink-0 rounded-[var(--radius-ctl)] border border-line px-3 text-[13px] text-muted hover:bg-hover hover:text-ink">
           추가
         </button>
       </div>
@@ -240,10 +243,10 @@ export function FavoriteButton({ memo, className }: { memo: Memo; className?: st
 }
 
 export function CategoryTag({ cat }: { cat: Category | null | undefined }) {
-  if (!cat) return <span className="chip bg-side text-muted">미분류</span>
+  if (!cat) return <span className="chip bg-side px-2.5 py-1 leading-4 text-muted">미분류</span>
   const p = getPastel(cat.color)
   return (
-    <span className="chip" style={{ background: `color-mix(in srgb, ${p.bg} var(--tint), var(--card-bg))`, color: p.fg }}>
+    <span className="chip max-w-36 truncate px-2.5 py-1 leading-4" style={{ background: `color-mix(in srgb, ${p.bg} var(--tint), var(--card-bg))`, color: p.fg }}>
       {cat.name}
     </span>
   )
@@ -252,23 +255,63 @@ export function CategoryTag({ cat }: { cat: Category | null | undefined }) {
 export function MemoCard({ memo, category, showCategory }: { memo: Memo; category?: Category | null; showCategory?: boolean }) {
   const cover = memo.imageIds[0]
   return (
-    <Link to={`/memo/${memo.id}`} className="card group flex flex-col overflow-hidden transition hover:-translate-y-0.5 hover:shadow-md">
-      {cover && <StoredImage id={cover} className="aspect-[16/10] w-full" />}
-      <div className="flex flex-1 flex-col p-4">
+    <Link to={`/memo/${memo.id}`} className="card card-hover group flex flex-col overflow-hidden">
+      {cover && <StoredImage id={cover} className="h-44 w-full" />}
+      <div className="flex flex-1 flex-col px-5 pt-4 pb-4">
         <div className="flex items-start gap-2">
-          <h3 className="min-w-0 flex-1 truncate font-medium text-ink">{memo.title || '제목 없음'}</h3>
+          <h3 className="min-w-0 flex-1 truncate text-[16px] font-semibold tracking-[-0.01em] text-ink">{memo.title || '제목 없음'}</h3>
           <FavoriteButton memo={memo} className="-mt-1 -mr-2" />
         </div>
-        {memo.content && <p className="mt-1 line-clamp-3 text-[13px] text-muted">{excerpt(memo.content, 160)}</p>}
-        <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-3">
+        {memo.content && <p className="mt-1 line-clamp-2 text-[13.5px] leading-relaxed text-muted">{excerpt(memo.content, 140)}</p>}
+        <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-4">
           {showCategory && <CategoryTag cat={category} />}
-          {memo.tags.slice(0, 3).map((t) => <TagChip key={t} tag={t} />)}
-          {!cover && memo.imageIds.length > 0 && <ImageIcon size={13} className="text-muted" />}
-          {memo.urls.length > 0 && <Link2 size={13} className="text-muted" />}
-          <span className="ml-auto text-[12px] text-muted/80">{relativeTime(memo.updatedAt)}</span>
+          {memo.tags.slice(0, 2).map((t) => <TagChip key={t} tag={t} hash={false} />)}
+          {!cover && memo.imageIds.length > 0 && <ImageIcon size={14} className="text-muted" />}
+          {memo.urls.length > 0 && <Link2 size={14} className="text-muted" />}
+          <span className="ml-auto text-[13px] text-muted tabular-nums" title={relativeTime(memo.updatedAt)}>{mmdd(memo.updatedAt)}</span>
         </div>
       </div>
     </Link>
+  )
+}
+
+/** 목록용 메모 행: 썸네일 · 제목/요약 · 색 칩 · 날짜 (+ 추가 동작) */
+export function MemoListItem({ memo, cat, date, extra, chip }: {
+  memo: Memo
+  cat: Category | null
+  /** 표시할 시각 (기본: 수정일) */
+  date?: number
+  extra?: React.ReactNode
+  /** 칩 문구 (기본: 첫 태그 → 카테고리 이름) */
+  chip?: string
+}) {
+  const label = chip ?? memo.tags[0] ?? cat?.name ?? '미분류'
+  const c = tagPastel(label)
+  const p = getPastel(cat?.color ?? 'sand')
+  return (
+    <div className="group -mx-2 flex items-center gap-4 rounded-[var(--radius-ctl)] px-2 py-3.5 transition hover:bg-hover">
+      <Link to={`/memo/${memo.id}`} className="flex min-w-0 flex-1 items-center gap-4">
+        {memo.imageIds[0] ? (
+          <StoredImage id={memo.imageIds[0]} className="h-[56px] w-[78px] shrink-0 rounded-lg" />
+        ) : (
+          <span className="flex h-[56px] w-[78px] shrink-0 items-center justify-center rounded-lg" style={{ background: tint(cat?.color ?? 'sand'), color: p.fg }}>
+            <CategoryIcon name={cat?.icon ?? 'note'} size={22} />
+          </span>
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[15.5px] font-semibold tracking-[-0.01em] text-ink">{memo.title || excerpt(memo.content, 30) || '제목 없음'}</p>
+          <p className="mt-1 truncate text-[13.5px] text-muted">{excerpt(memo.content, 70) || (cat ? cat.name : '내용 없음')}</p>
+        </div>
+        <span
+          className="hidden max-w-28 shrink-0 truncate rounded-md px-2.5 py-1 text-[12.5px] leading-4 font-medium sm:inline-block"
+          style={{ background: `color-mix(in srgb, ${c.bg} var(--tint), var(--card-bg))`, color: c.fg }}
+        >
+          {label}
+        </span>
+        <span className="w-12 shrink-0 text-right text-[13.5px] text-muted tabular-nums">{mmdd(date ?? memo.updatedAt)}</span>
+      </Link>
+      {extra}
+    </div>
   )
 }
 

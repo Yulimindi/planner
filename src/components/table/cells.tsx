@@ -270,7 +270,7 @@ function ImageCellInput({ value, onCommit }: { value: CellValue | undefined; onC
         <button
           type="button"
           onClick={picker.open}
-          className="flex h-10 items-center gap-1.5 rounded-xl border border-dashed border-line px-3 text-[13px] text-muted hover:bg-hover hover:text-ink"
+          className="flex h-10 items-center gap-1.5 rounded-[var(--radius-ctl)] border border-dashed border-line px-3 text-[13px] text-muted hover:bg-hover hover:text-ink"
         >
           {picker.busy ? <Loader2 size={15} className="animate-spin" /> : <ImagePlus size={15} />} 이미지 선택
         </button>

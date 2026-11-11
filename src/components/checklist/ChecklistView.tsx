@@ -4,10 +4,10 @@ import { CalendarDays, ChevronDown, ChevronUp, GripVertical, ListChecks, Plus, T
 import { db } from '../../db/db'
 import { addChecklistItem, deleteChecklistItem, reorderChecklist, updateChecklistItem } from '../../db/repo'
 import type { Category, ChecklistItem } from '../../db/types'
-import { getPastel } from '../../lib/colors'
+import { getPastel, wash } from '../../lib/colors'
 import { useDragSort } from '../../lib/hooks'
 import { cn, moveItem, todayISO } from '../../lib/utils'
-import { Button, EmptyState, IconButton, Input, Segmented, Spinner } from '../ui'
+import { Button, IconButton, Panel, Spinner } from '../ui'
 import { useFeedback } from '../ui/Feedback'
 import { useCanEdit } from '../share/ShareModal'
 
@@ -53,67 +53,123 @@ export function ChecklistView({ category }: { category: Category }) {
     if (ok) await run(() => db.checklist.bulkDelete(items.filter((i) => i.done).map((i) => i.id)), '완료한 항목을 정리했어요.')
   }
 
+  const upcoming = items
+    .filter((i) => !i.done && i.dueDate)
+    .sort((a, b) => (a.dueDate! < b.dueDate! ? -1 : 1))
+    .slice(0, 3)
+  const R = 46
+  const C = 2 * Math.PI * R
+
   return (
-    <div className="mx-auto max-w-3xl">
-      {/* progress */}
-      <div className="card mb-4 p-5">
-        <div className="mb-2 flex items-baseline justify-between">
-          <span className="text-[14px] font-medium">진행률</span>
-          <span className="text-[13px] text-muted"><b className="text-[20px] font-semibold text-ink">{pct}%</b> · {done}/{items.length} 완료</span>
-        </div>
-        <div className="h-2.5 overflow-hidden rounded-full bg-side">
-          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: p.fg, opacity: 0.55 }} />
-        </div>
-      </div>
-
-      {canEdit && <form onSubmit={add} className="card mb-4 flex flex-wrap items-center gap-2 p-3">
-        <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="새 항목을 입력하고 Enter" className="min-w-48 flex-1 border-transparent focus:border-transparent focus:ring-0" maxLength={300} />
-        <label className="flex items-center gap-1.5 text-[13px] text-muted">
-          <CalendarDays size={15} />
-          <input type="date" value={due} onChange={(e) => setDue(e.target.value)} className="field h-9 w-36 text-[13px]" aria-label="목표 날짜 (선택)" title="목표 날짜 (선택)" />
-        </label>
-        <Button type="submit" variant="primary" size="sm" className="h-9" icon={<Plus size={15} />} disabled={!text.trim()}>추가</Button>
-      </form>}
-
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <Segmented<Show>
-          value={show}
-          onChange={setShow}
-          options={[
-            { value: 'all', label: `전체 ${items.length}` },
-            { value: 'active', label: `진행 중 ${items.length - done}` },
-            { value: 'done', label: `완료 ${done}` },
-          ]}
-        />
-        {done > 0 && canEdit && <Button size="sm" variant="ghost" icon={<Trash2 size={14} />} onClick={clearDone}>완료 항목 정리</Button>}
-      </div>
-
-      {items.length === 0 ? (
-        <EmptyState icon={<ListChecks size={22} />} title="아직 항목이 없어요" description="위 입력창에서 첫 번째 항목을 추가해 보세요." />
-      ) : visible.length === 0 ? (
-        <p className="card px-4 py-8 text-center text-[13px] text-muted">{show === 'done' ? '완료한 항목이 없어요.' : '모든 항목을 완료했어요! 🎉'}</p>
-      ) : (
-        <fieldset disabled={!canEdit} className="min-w-0">
-        <ul className="card divide-y divide-line">
-          {visible.map((item) => (
-            <ChecklistRow
-              key={item.id}
-              item={item}
-              index={ids.indexOf(item.id)}
-              total={ids.length}
-              dragProps={show === 'all' && canEdit ? drag.itemProps(item.id) : {}}
-              dragging={drag.dragId === item.id}
-              over={drag.overId === item.id && drag.dragId !== item.id}
-              onMove={(dir) => {
-                const i = ids.indexOf(item.id)
-                run(() => reorderChecklist(moveItem(ids, i, i + dir)))
-              }}
-              canReorder={show === 'all' && canEdit}
+    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <Panel
+        icon={<ListChecks size={20} strokeWidth={1.6} style={{ color: p.fg }} />}
+        title="할 일 목록"
+        bodyClassName="pb-2"
+        action={
+          <div className="flex items-center gap-1 text-[13.5px]">
+            {([['all', `전체 ${items.length}`], ['active', `진행 중 ${items.length - done}`], ['done', `완료 ${done}`]] as const).map(([v, label]) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setShow(v)}
+                aria-pressed={show === v}
+                className={cn('rounded-md px-2 py-1 transition', show === v ? 'font-semibold text-ink' : 'text-muted hover:text-ink')}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        }
+      >
+        {canEdit && (
+          <form onSubmit={add} className="mt-1 mb-2 flex flex-wrap items-center gap-2 rounded-[var(--radius-card)] border sm:rounded-full border-line-strong bg-card py-1.5 pr-1.5 pl-4 shadow-soft focus-within:border-accent/70 focus-within:ring-[3px] focus-within:ring-accent-soft">
+            <Plus size={17} className="text-muted" />
+            <input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="새 할 일을 입력하고 Enter"
+              className="min-w-40 flex-1 bg-transparent py-1.5 text-[14.5px] outline-none placeholder:text-muted/70"
+              maxLength={300}
             />
+            <label className="flex items-center gap-1.5 text-[13px] text-muted" title="목표 날짜 (선택)">
+              <CalendarDays size={15} />
+              <input type="date" value={due} onChange={(e) => setDue(e.target.value)} className="h-8 w-[132px] rounded-full bg-side px-3 text-[12.5px] text-ink-2 outline-none" aria-label="목표 날짜 (선택)" />
+            </label>
+            <Button type="submit" variant="primary" size="sm" disabled={!text.trim()}>추가</Button>
+          </form>
+        )}
+
+        {items.length === 0 ? (
+          <p className="py-12 text-center text-[13.5px] text-muted">아직 할 일이 없어요. 위 입력창에서 첫 번째 할 일을 추가해 보세요.</p>
+        ) : visible.length === 0 ? (
+          <p className="py-12 text-center text-[13.5px] text-muted">{show === 'done' ? '완료한 항목이 없어요.' : '모든 항목을 완료했어요.'}</p>
+        ) : (
+          <fieldset disabled={!canEdit} className="min-w-0">
+            <ul className="divide-y divide-line">
+              {visible.map((item) => (
+                <ChecklistRow
+                  key={item.id}
+                  item={item}
+                  index={ids.indexOf(item.id)}
+                  total={ids.length}
+                  dragProps={show === 'all' && canEdit ? drag.itemProps(item.id) : {}}
+                  dragging={drag.dragId === item.id}
+                  over={drag.overId === item.id && drag.dragId !== item.id}
+                  onMove={(dir) => {
+                    const i = ids.indexOf(item.id)
+                    run(() => reorderChecklist(moveItem(ids, i, i + dir)))
+                  }}
+                  canReorder={show === 'all' && canEdit}
+                />
+              ))}
+            </ul>
+          </fieldset>
+        )}
+      </Panel>
+
+      {/* 진행률 */}
+      <aside className="card p-6">
+        <h2 className="t-section mb-5">진행률</h2>
+        <div className="flex items-center gap-5">
+          <svg width="112" height="112" viewBox="0 0 112 112" className="shrink-0 -rotate-90" aria-hidden>
+            <circle cx="56" cy="56" r={R} fill="none" stroke="var(--line)" strokeWidth="10" />
+            <circle
+              cx="56" cy="56" r={R} fill="none" stroke={p.fg} strokeOpacity="0.6" strokeWidth="10" strokeLinecap="round"
+              strokeDasharray={C} strokeDashoffset={C * (1 - pct / 100)} className="transition-[stroke-dashoffset] duration-700"
+            />
+          </svg>
+          <div>
+            <p className="text-[34px] leading-none font-bold tracking-[-0.03em] text-ink">{pct}<span className="text-[18px] font-semibold">%</span></p>
+            <p className="mt-2 text-[13.5px] text-muted">{items.length}개 중 {done}개 완료</p>
+          </div>
+        </div>
+        <dl className="mt-6 grid grid-cols-3 gap-2 text-center">
+          {[['전체', items.length], ['진행 중', items.length - done], ['완료', done]].map(([k, v]) => (
+            <div key={k} className="rounded-[var(--radius-ctl)] py-3" style={{ background: wash(category.color) }}>
+              <dd className="text-[18px] font-semibold text-ink tabular-nums">{v}</dd>
+              <dt className="text-[12px] text-muted">{k}</dt>
+            </div>
           ))}
-        </ul>
-        </fieldset>
-      )}
+        </dl>
+        {upcoming.length > 0 && (
+          <div className="mt-6">
+            <p className="t-label mb-2">다가오는 목표일</p>
+            <ul className="space-y-2">
+              {upcoming.map((i) => (
+                <li key={i.id} className="flex items-center gap-2 text-[13.5px]">
+                  <CalendarDays size={14} className="shrink-0 text-muted" />
+                  <span className="min-w-0 flex-1 truncate text-ink-2">{i.text}</span>
+                  <span className="shrink-0 text-[12.5px] text-muted tabular-nums">{i.dueDate!.slice(5).replace('-', '.')}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {done > 0 && canEdit && (
+          <Button size="sm" className="mt-6 w-full" icon={<Trash2 size={14} />} onClick={clearDone}>완료 항목 정리</Button>
+        )}
+      </aside>
     </div>
   )
 }
@@ -146,14 +202,14 @@ function ChecklistRow({ item, index, total, dragProps, dragging, over, onMove, c
   return (
     <li
       {...(editing ? {} : dragProps)}
-      className={cn('group flex items-center gap-2 px-3 py-2.5 transition', dragging && 'opacity-40', over && 'bg-accent-soft/40')}
+      className={cn('group -mx-2 flex items-center gap-3 rounded-[var(--radius-ctl)] px-2 py-3 transition hover:bg-hover/60', dragging && 'opacity-40', over && 'bg-accent-soft/40')}
     >
       <GripVertical size={15} className={cn('hidden shrink-0 text-muted/0 sm:block', canReorder && 'cursor-grab group-hover:text-muted/60')} />
       <input
         type="checkbox"
         checked={item.done}
         onChange={(e) => run(() => updateChecklistItem(item.id, { done: e.target.checked }))}
-        className="size-[18px] shrink-0 cursor-pointer"
+        className="check-round shrink-0"
         aria-label="완료"
       />
       <div className="min-w-0 flex-1">

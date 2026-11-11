@@ -15,9 +15,9 @@ export const makeOptions = (labels: string[]): SelectOption[] =>
   labels.map((label, i) => ({ id: uid(), label, color: OPTION_COLORS[i % OPTION_COLORS.length] }))
 
 const SEED: SeedCat[] = [
-  { name: 'Bucket List', description: '언젠가 꼭 해보고 싶은 일들', icon: 'sparkles', color: 'lavender', type: 'checklist' },
+  { name: 'Bucket List', description: '언젠가 꼭 해보고 싶은 일들', icon: 'heart', color: 'pink', type: 'checklist' },
   {
-    name: 'Watch List', description: '보고 싶은 영화, 드라마, 책', icon: 'film', color: 'bluegrey', type: 'table',
+    name: 'Watch List', description: '보고 싶은 영화, 드라마, 책', icon: 'film', color: 'lavender', type: 'table',
     columns: [
       { name: '제목', type: 'text' },
       { name: '분류', type: 'select', options: ['영화', '드라마', '책', '애니메이션'] },
@@ -26,10 +26,10 @@ const SEED: SeedCat[] = [
       { name: '본 날짜', type: 'date' },
     ],
   },
-  { name: 'Date & Travel', description: '가고 싶은 곳, 다녀온 곳의 기록', icon: 'plane', color: 'pink', type: 'gallery' },
-  { name: 'Hobby & Life', description: '취미와 일상의 소소한 기록', icon: 'coffee', color: 'sage', type: 'note' },
+  { name: 'Date & Travel', description: '가고 싶은 곳, 다녀온 곳의 기록', icon: 'map-pin', color: 'bluegrey', type: 'gallery' },
+  { name: 'Hobby & Life', description: '취미와 일상의 소소한 기록', icon: 'palette', color: 'peach', type: 'note' },
   {
-    name: 'Money', description: '지출과 저축 기록', icon: 'wallet', color: 'butter', type: 'table',
+    name: 'Money', description: '지출과 저축 기록', icon: 'wallet', color: 'sage', type: 'table',
     columns: [
       { name: '날짜', type: 'date' },
       { name: '항목', type: 'text' },
@@ -39,7 +39,7 @@ const SEED: SeedCat[] = [
     ],
   },
   {
-    name: 'Wishlist', description: '갖고 싶은 것들', icon: 'gift', color: 'peach', type: 'table',
+    name: 'Wishlist', description: '갖고 싶은 것들', icon: 'gift', color: 'butter', type: 'table',
     columns: [
       { name: '이름', type: 'text' },
       { name: '이미지', type: 'image' },
@@ -48,7 +48,7 @@ const SEED: SeedCat[] = [
       { name: '구매함', type: 'checkbox' },
     ],
   },
-  { name: 'Study & Ideas', description: '공부한 내용과 떠오른 아이디어', icon: 'lightbulb', color: 'mint', type: 'note' },
+  { name: 'Study & Ideas', description: '공부한 내용과 떠오른 아이디어', icon: 'book-open', color: 'mint', type: 'note' },
   { name: 'Plans', description: '해야 할 일과 계획', icon: 'calendar', color: 'sand', type: 'checklist' },
 ]
 
@@ -68,7 +68,10 @@ export function buildSeed() {
   const t = Date.now()
   const categories: Category[] = []
   const columns: Column[] = []
-  SEED.forEach((s, i) => {
+  // 홈 화면 배치 순서 (참고 디자인 기준)
+  const ORDER = ['Bucket List', 'Watch List', 'Money', 'Date & Travel', 'Hobby & Life', 'Study & Ideas', 'Wishlist', 'Plans']
+  SEED.forEach((s) => {
+    const i = ORDER.indexOf(s.name)
     const id = uid()
     categories.push({
       id, name: s.name, description: s.description, icon: s.icon, color: s.color, type: s.type,

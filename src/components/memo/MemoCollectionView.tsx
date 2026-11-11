@@ -5,7 +5,7 @@ import { FileText, Image as ImageIcon, Plus, Search, Star } from 'lucide-react'
 import { db } from '../../db/db'
 import { createMemo } from '../../db/repo'
 import type { Category, Memo } from '../../db/types'
-import { cn, excerpt, formatDate } from '../../lib/utils'
+import { cn, excerpt, mmdd } from '../../lib/utils'
 import { Button, EmptyState, Input, Select, Spinner } from '../ui'
 import { useFeedback } from '../ui/Feedback'
 import { useCanEdit } from '../share/ShareModal'
@@ -56,7 +56,7 @@ export function MemoCollectionView({ category }: { category: Category }) {
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="relative min-w-40 flex-1 sm:max-w-72">
           <Search size={15} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={isGallery ? '카드 검색' : '메모 검색'} className="h-9 pl-9" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={isGallery ? '카드 검색' : '메모 검색'} className="field-pill h-10 pl-10" />
         </div>
         {tags.length > 0 && (
           <Select value={tag} onChange={(e) => setTag(e.target.value)} className="h-9 w-auto min-w-28 text-[13px]" aria-label="태그 필터">
@@ -89,11 +89,11 @@ export function MemoCollectionView({ category }: { category: Category }) {
       ) : shown.length === 0 ? (
         <EmptyState icon={<Search size={22} />} title="조건에 맞는 항목이 없어요" />
       ) : isGallery ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 items-start gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {shown.map((m) => <GalleryCard key={m.id} memo={m} />)}
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {shown.map((m) => <MemoCard key={m.id} memo={m} />)}
         </div>
       )}
@@ -104,7 +104,7 @@ export function MemoCollectionView({ category }: { category: Category }) {
 function GalleryCard({ memo }: { memo: Memo }) {
   const cover = memo.imageIds[0]
   return (
-    <Link to={`/memo/${memo.id}`} className="card group relative flex flex-col overflow-hidden transition hover:-translate-y-0.5 hover:shadow-md">
+    <Link to={`/memo/${memo.id}`} className="card group relative flex flex-col overflow-hidden card-hover">
       {cover ? (
         <StoredImage id={cover} className="aspect-square w-full" alt={memo.title} />
       ) : (
@@ -116,12 +116,12 @@ function GalleryCard({ memo }: { memo: Memo }) {
         <span className="absolute top-2 left-2 rounded-full bg-card/90 px-2 text-[11px] text-muted">+{memo.imageIds.length - 1}</span>
       )}
       <FavoriteButton memo={memo} className={cn('absolute top-1.5 right-1.5 bg-card/80', !memo.favorite && 'sm:opacity-0 sm:group-hover:opacity-100')} />
-      <div className="p-3">
-        <p className="truncate text-[14px] font-medium">{memo.title || '제목 없음'}</p>
+      <div className="px-4 pt-3.5 pb-4">
+        <p className="truncate text-[15px] font-semibold tracking-[-0.01em]">{memo.title || '제목 없음'}</p>
         {memo.content && <p className="mt-0.5 line-clamp-2 text-[12px] text-muted">{excerpt(memo.content, 90)}</p>}
         <div className="mt-2 flex flex-wrap items-center gap-1">
-          {memo.tags.slice(0, 2).map((t) => <TagChip key={t} tag={t} />)}
-          <span className="ml-auto text-[11px] text-muted/80">{formatDate(memo.createdAt)}</span>
+          {memo.tags.slice(0, 2).map((t) => <TagChip key={t} tag={t} hash={false} />)}
+          <span className="ml-auto text-[12.5px] text-muted tabular-nums">{mmdd(memo.createdAt)}</span>
         </div>
       </div>
     </Link>

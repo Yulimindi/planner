@@ -20,10 +20,10 @@ export function CategoryIconBadge({ cat, size = 40 }: { cat: Pick<Category, 'ico
   const p = getPastel(cat.color)
   return (
     <span
-      className="inline-flex shrink-0 items-center justify-center rounded-xl"
-      style={{ width: size, height: size, background: `color-mix(in srgb, ${p.bg} var(--tint), var(--card-bg))`, color: p.fg }}
+      className="inline-flex shrink-0 items-center justify-center rounded-full"
+      style={{ width: size, height: size, background: `color-mix(in srgb, color-mix(in srgb, ${p.fg} 10%, ${p.bg}) var(--tint), var(--card-bg))`, color: p.fg }}
     >
-      <CategoryIcon name={cat.icon} size={Math.round(size * 0.48)} />
+      <CategoryIcon name={cat.icon} size={Math.round(size * 0.46)} />
     </span>
   )
 }
@@ -96,7 +96,7 @@ export function CategoryFormModal({ open, onClose, category }: {
       }
     >
       <form id="category-form" onSubmit={submit} className="space-y-5">
-        <div className="flex items-center gap-3 rounded-2xl bg-side/50 p-3">
+        <div className="flex items-center gap-3 rounded-[var(--radius-card)] bg-side/50 p-3">
           <CategoryIconBadge cat={{ icon, color }} size={44} />
           <div className="min-w-0">
             <p className="truncate font-medium">{name.trim() || '카테고리 이름'}</p>
@@ -124,7 +124,7 @@ export function CategoryFormModal({ open, onClose, category }: {
         <div>
           <Label>데이터 관리 형식</Label>
           {category ? (
-            <p className="rounded-xl bg-side/50 px-3 py-2 text-[13px] text-muted">
+            <p className="rounded-[var(--radius-ctl)] bg-side/50 px-3 py-2 text-[13px] text-muted">
               {TYPES.find((t) => t.type === category.type)?.label} · 형식은 생성 후 변경할 수 없어요.
             </p>
           ) : (
@@ -135,7 +135,7 @@ export function CategoryFormModal({ open, onClose, category }: {
                   type="button"
                   onClick={() => setType(t.type)}
                   className={cn(
-                    'flex items-start gap-3 rounded-xl border p-3 text-left transition',
+                    'flex items-start gap-3 rounded-[var(--radius-ctl)] border p-3 text-left transition',
                     type === t.type ? 'border-accent/60 bg-accent-soft/60' : 'border-line hover:bg-hover',
                   )}
                 >

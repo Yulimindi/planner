@@ -16,9 +16,11 @@ export const ICONS: Record<string, LucideIcon> = {
   home: Home, dumbbell: Dumbbell, smile: Smile, cat: Cat, folder: Folder, note: StickyNote,
 }
 
-export const ICON_NAMES = Object.keys(ICONS)
+// 선택 목록에는 업무용으로도 어울리는 선형 아이콘만 노출 (기존 데이터 호환을 위해 매핑은 유지)
+const HIDDEN = new Set(['cat', 'flower', 'smile'])
+export const ICON_NAMES = Object.keys(ICONS).filter((n) => !HIDDEN.has(n))
 
 export function CategoryIcon({ name, size = 18, className }: { name: string; size?: number; className?: string }) {
   const Icon = ICONS[name] ?? Folder
-  return <Icon size={size} strokeWidth={1.8} className={className} />
+  return <Icon size={size} strokeWidth={1.7} className={className} />
 }

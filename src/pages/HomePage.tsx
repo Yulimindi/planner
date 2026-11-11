@@ -1,33 +1,19 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Clock, PenLine, Plus, Star, FileText } from 'lucide-react'
+import { ArrowRight, CalendarDays, Clock3, LayoutGrid, Pencil, Plus, Sparkle, Star, Users } from 'lucide-react'
 import { db } from '../db/db'
 import { isVisibleMemo, useAccessMap, useCategoryCounts, useCategoryMap, useSettings, useSplitCategories } from '../lib/hooks'
-import { Button, EmptyState, Section, Spinner } from '../components/ui'
+import { Button, EmptyState, Panel, Section, Spinner, linkCls } from '../components/ui'
 import { CategoryCard, CategoryGrid } from '../components/category/CategoryCard'
-import { MemoRow } from '../components/memo/MemoParts'
+import { MemoListItem } from '../components/memo/MemoParts'
+import { getPastel, wash, washLine } from '../lib/colors'
 import { useUI } from '../components/layout/AppLayout'
-import type { Category, Memo } from '../db/types'
+import { cn } from '../lib/utils'
+import type { Memo } from '../db/types'
 
-function greeting() {
-  const h = new Date().getHours()
-  if (h < 6) return '고요한 밤이에요. 오늘 떠오른 생각을 정리해 볼까요?'
-  if (h < 12) return '좋은 아침이에요. 오늘은 어떤 것을 기록해 볼까요?'
-  if (h < 18) return '편안한 오후예요. 잠깐 떠오른 생각도 놓치지 마세요.'
-  return '하루를 마무리하며 오늘의 기록을 남겨보세요.'
-}
-
-function MemoList({ memos, cats, empty }: { memos: Memo[]; cats: Map<string, Category>; empty: string }) {
-  if (!memos.length) return <p className="card px-4 py-6 text-center text-[13px] text-muted">{empty}</p>
-  return (
-    <div className="card divide-y divide-line overflow-hidden">
-      {memos.map((m) => (
-        <MemoRow key={m.id} memo={m} category={m.categoryId ? cats.get(m.categoryId) : null} showCategory />
-      ))}
-    </div>
-  )
-}
+/** 인사말 (참고 디자인과 같이 간결하게 고정) */
+const greeting = () => '안녕하세요!'
 
 export default function HomePage() {
   const settings = useSettings()
@@ -37,6 +23,7 @@ export default function HomePage() {
   const counts = useCategoryCounts()
   const { openQuickMemo, openCategoryForm } = useUI()
   const memos = useLiveQuery(() => db.memos.toArray(), [])
+  const [recentTab, setRecentTab] = useState<'created' | 'updated'>('created')
 
   const { recentCreated, recentUpdated, favorites } = useMemo(() => {
     const visible = (memos ?? []).filter((m) => isVisibleMemo(m, catMap))
@@ -49,29 +36,55 @@ export default function HomePage() {
 
   if (!cats || !memos) return <Spinner />
 
+  const recent = recentTab === 'created' ? recentCreated : recentUpdated
+  const catOf = (m: Memo) => (m.categoryId ? (catMap.get(m.categoryId) ?? null) : null)
+
   return (
     <div>
-      <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="mb-1 text-[13px] text-muted">
-            {new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
-          </p>
-          <h1 className="text-[28px] font-semibold tracking-tight text-ink sm:text-[32px]">{settings.appName}</h1>
-          <p className="mt-1 text-[14px] text-muted">{greeting()}</p>
+      {/* 인사말 */}
+      <header className="relative mb-11 pt-1">
+        <p className="mb-5 flex items-center gap-2.5 text-[14.5px] text-ink-2/80">
+          <CalendarDays size={18} strokeWidth={1.6} />
+          {new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
+        </p>
+        <h1 className="t-display">{greeting()}</h1>
+        <p className="mt-3 text-[16px] text-ink-2/85 sm:text-[17.5px]">
+          오늘도 {settings.appName}에 새로운 기록을 남겨보세요
+          <Sparkle size={16} strokeWidth={1.6} className="ml-1.5 inline -translate-y-0.5 fill-[#F0D9A8] text-[#DDBB7A] [[data-theme=cocoa]_&]:opacity-50" />
+        </p>
+        {/* 제목 옆 작은 반짝임 두 개 (은은하게) */}
+        <Sparkle aria-hidden size={18} strokeWidth={1.4} className="absolute top-[62px] left-[64%] hidden fill-[#F3D6C7] text-[#E7B9A6] lg:block [[data-theme=cocoa]_&]:opacity-35" />
+        <Sparkle aria-hidden size={24} strokeWidth={1.4} className="absolute top-[92px] left-[67%] hidden fill-[#F3D6C7] text-[#E7B9A6] lg:block [[data-theme=cocoa]_&]:opacity-35" />
+      </header>
+
+      {/* 빠른 메모 */}
+      <div
+        className="mb-12 flex flex-wrap items-center gap-x-5 gap-y-3 rounded-[var(--radius-card)] border px-6 py-5 sm:px-7"
+        style={{ background: wash('pink'), borderColor: washLine('pink') }}
+      >
+        <Pencil size={30} strokeWidth={1.4} className="shrink-0" style={{ color: getPastel('pink').fg }} />
+        <div className="min-w-0 flex-1 basis-48">
+          <p className="text-[17px] font-semibold tracking-[-0.01em] text-ink">빠른 메모</p>
+          <p className="mt-0.5 text-[13.5px] text-muted">지금 떠오른 생각을 간단히 적어보세요!</p>
         </div>
-        <Button variant="primary" icon={<PenLine size={16} />} onClick={openQuickMemo}>
-          빠른 메모
+        <Button
+          variant="primary"
+          icon={<Plus size={17} />}
+          onClick={openQuickMemo}
+          className="h-11 w-full rounded-full! px-6 text-[14.5px] shadow-[0_4px_14px_rgb(196_143_137/0.35)] sm:w-auto"
+        >
+          메모 추가
         </Button>
       </div>
 
+      {/* 카테고리 */}
       <Section
-        title="카테고리"
+        title="My Categories"
+        icon={<LayoutGrid size={20} strokeWidth={1.6} />}
         action={
-          <div className="flex items-center gap-3">
-            <span className="hidden text-[12px] text-muted sm:inline">드래그해서 순서를 바꿀 수 있어요</span>
-            <Button size="sm" variant="ghost" icon={<Plus size={15} />} onClick={() => openCategoryForm()}>
-              추가
-            </Button>
+          <div className="flex items-center gap-4">
+            <span className="hidden text-[12.5px] text-muted lg:inline">드래그해서 순서 변경</span>
+            <Link to="/categories" className={cn(linkCls, 'text-[14px]')}>전체 보기 <ArrowRight size={15} /></Link>
           </div>
         }
       >
@@ -79,7 +92,7 @@ export default function HomePage() {
           <CategoryGrid cats={cats} counts={counts} />
         ) : (
           <EmptyState
-            icon={<FileText size={22} />}
+            icon={<LayoutGrid size={22} />}
             title="아직 카테고리가 없어요"
             description="주제별로 기록을 모아둘 카테고리를 만들어 보세요."
             action={<Button variant="primary" icon={<Plus size={16} />} onClick={() => openCategoryForm()}>새 카테고리</Button>}
@@ -88,30 +101,65 @@ export default function HomePage() {
       </Section>
 
       {!!shared?.length && (
-        <Section title="공유받은 페이지">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        <Section title="Shared with me" icon={<Users size={18} strokeWidth={1.7} />}>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {shared.map((c) => (
-              <div key={c.id}>
-                <CategoryCard cat={c} count={counts[c.id] ?? 0} />
-                <p className="mt-1 px-1 text-[12px] text-muted">{access.get(c.id)?.ownerName}님이 공유</p>
-              </div>
+              <CategoryCard key={c.id} cat={c} count={counts[c.id] ?? 0} sub={`${access.get(c.id)?.ownerName ?? ''}님이 공유`} />
             ))}
           </div>
         </Section>
       )}
 
-      <div className="grid gap-x-6 lg:grid-cols-2">
-        <Section title="최근 작성한 메모" action={<Link to="/quick" className="text-[13px] text-muted hover:text-ink">Quick Memo →</Link>}>
-          <MemoList memos={recentCreated} cats={catMap} empty="아직 작성한 메모가 없어요." />
-        </Section>
-        <Section title="최근 수정한 메모" action={<Clock size={15} className="text-muted" />}>
-          <MemoList memos={recentUpdated} cats={catMap} empty="수정한 메모가 여기에 표시돼요." />
-        </Section>
-      </div>
+      {/* 최근 · 즐겨찾기 */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Panel
+          icon={<Clock3 size={20} strokeWidth={1.6} style={{ color: getPastel('pink').fg }} />}
+          title={recentTab === 'created' ? '최근 작성한 메모' : '최근 수정한 메모'}
+          action={
+            <div className="flex items-center gap-1 text-[13.5px]">
+              {(['created', 'updated'] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setRecentTab(t)}
+                  aria-pressed={recentTab === t}
+                  className={cn('rounded-md px-2 py-1 transition', recentTab === t ? 'font-semibold text-ink' : 'text-muted hover:text-ink')}
+                >
+                  {t === 'created' ? '작성순' : '수정순'}
+                </button>
+              ))}
+            </div>
+          }
+        >
+          {recent.length ? (
+            <div className="divide-y divide-line">
+              {recent.map((m) => (
+                <MemoListItem key={m.id} memo={m} cat={catOf(m)} date={recentTab === 'created' ? m.createdAt : m.updatedAt} />
+              ))}
+            </div>
+          ) : (
+            <p className="py-10 text-center text-[13.5px] text-muted">
+              {recentTab === 'created' ? '아직 작성한 메모가 없어요.' : '수정한 메모가 여기에 표시돼요.'}
+            </p>
+          )}
+        </Panel>
 
-      <Section title="즐겨찾기" action={<Link to="/favorites" className="inline-flex items-center gap-1 text-[13px] text-muted hover:text-ink"><Star size={13} /> 전체 보기</Link>}>
-        <MemoList memos={favorites} cats={catMap} empty="메모의 별표를 누르면 여기에 모여요." />
-      </Section>
+        <Panel
+          icon={<Star size={20} strokeWidth={1.5} className="fill-[#EBC877] text-[#D9AE52]" />}
+          title="즐겨찾기"
+          action={<Link to="/favorites" className={cn(linkCls, 'text-[13.5px]')}>더보기 <ArrowRight size={15} /></Link>}
+        >
+          {favorites.length ? (
+            <div className="divide-y divide-line">
+              {favorites.map((m) => (
+                <MemoListItem key={m.id} memo={m} cat={catOf(m)} />
+              ))}
+            </div>
+          ) : (
+            <p className="py-10 text-center text-[13.5px] text-muted">메모의 별표를 누르면 여기에 모여요.</p>
+          )}
+        </Panel>
+      </div>
     </div>
   )
 }

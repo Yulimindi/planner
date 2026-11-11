@@ -99,7 +99,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
               key={t.id}
               role="status"
               className={cn(
-                'pointer-events-auto flex max-w-md items-center gap-2 rounded-2xl border px-4 py-2.5 text-[14px] shadow-lg',
+                'pointer-events-auto flex max-w-md items-center gap-2 rounded-[var(--radius-card)] border px-4 py-2.5 text-[14px] shadow-lg',
                 t.kind === 'error' ? 'border-danger/30 bg-danger-soft text-danger' : 'border-line bg-card text-ink',
               )}
             >

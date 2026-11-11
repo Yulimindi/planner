@@ -53,7 +53,7 @@ export function MoveMemoSelect({ memo, className, compact, afterMove }: {
       <Select
         value={memo.categoryId ?? '__none__'}
         onChange={(e) => onChange(e.target.value)}
-        className={cn('pl-9', compact ? 'h-8 w-40 text-[13px]' : 'h-9 w-52')}
+        className={cn('pl-9', compact ? 'h-9 w-48 rounded-full! text-[13px]' : 'h-10 w-full min-w-56')}
         aria-label="카테고리 이동"
       >
         <option value="__none__">미분류 (Quick Memo)</option>

@@ -117,7 +117,7 @@ export function TableView({ category }: { category: Category }) {
         />
         <div className="relative min-w-40 flex-1 sm:max-w-64">
           <Search size={15} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="표에서 검색" className="h-9 pl-9" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="표에서 검색" className="field-pill h-10 pl-10" />
         </div>
         <Button size="sm" className="h-9" variant={showFilters || activeFilters ? 'secondary' : 'ghost'} icon={<FilterIcon size={15} />} onClick={() => setShowFilters((v) => !v)}>
           필터{activeFilters ? ` ${activeFilters}` : ''}
@@ -289,7 +289,7 @@ function TableGrid({
     <div className="card overflow-x-auto">
       <table className="w-full min-w-max border-collapse text-[14px]">
         <thead>
-          <tr className="border-b border-line bg-side/40 text-left">
+          <tr className="border-b border-line bg-side/60 text-left">
             <th className="w-8" />
             {columns.map((c) => (
               <th
@@ -346,7 +346,7 @@ function TableGrid({
                   const v = r.cells[c.id]
                   const isEditing = editing?.rowId === r.id && editing.colId === c.id
                   return (
-                    <td key={c.id} className="h-11 max-w-80 border-l border-line px-1 align-middle first:border-l-0">
+                    <td key={c.id} className="h-[52px] max-w-80 border-l border-line px-1 align-middle text-[14.5px] first:border-l-0">
                       {c.type === 'checkbox' ? (
                         <div className="flex justify-center">
                           <input type="checkbox" checked={v === true} onChange={(e) => commit(r, c, e.target.checked)} className="size-4 cursor-pointer" aria-label={c.name} />
@@ -496,7 +496,7 @@ function GalleryRows({ columns, rows, highlight, onOpen }: { columns: Column[]; 
             id={`row-${r.id}`}
             type="button"
             onClick={() => onOpen(r.id)}
-            className={cn('card overflow-hidden text-left transition hover:-translate-y-0.5 hover:shadow-md', highlight === r.id && 'ring-2 ring-accent/50')}
+            className={cn('card overflow-hidden text-left card-hover', highlight === r.id && 'ring-2 ring-accent/50')}
           >
             {typeof img === 'string' && img ? (
               <StoredImage id={img} className="aspect-[4/3] w-full" />
