@@ -5,6 +5,7 @@ import { onPresence, onReconnect, sendRealtime } from '../../sync/engine'
 import { CLIENT_ID } from '../../sync/api'
 import { PASTELS } from '../../lib/colors'
 import { cn } from '../../lib/utils'
+import { Avatar, UserName } from '../user/UserBits'
 
 export interface Peer {
   cid: string
@@ -124,7 +125,7 @@ export function CursorLayer({ peers }: { peers: Peer[] }) {
                 className="ml-3 -mt-0.5 inline-block rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap shadow-sm"
                 style={{ background: c.fg, color: '#fff' }}
               >
-                {p.name}
+                <UserName uid={p.uid} fallback={p.name} />
               </span>
             </div>
           )
@@ -141,19 +142,11 @@ export function PeerAvatars({ peers, className }: { peers: Peer[]; className?: s
   return (
     <div className={cn('flex items-center gap-2', className)}>
       <div className="flex -space-x-2">
-        {unique.slice(0, 5).map((p) => {
-          const c = peerColor(p.uid)
-          return (
-            <span
-              key={p.uid}
-              title={`${p.name}님이 보고 있어요`}
-              className="flex size-7 items-center justify-center rounded-full border-2 border-card text-[11px] font-semibold"
-              style={{ background: c.bg, color: c.fg }}
-            >
-              {p.name.slice(0, 1).toUpperCase()}
-            </span>
-          )
-        })}
+        {unique.slice(0, 5).map((p) => (
+          <span key={p.uid} title={`${p.name}님이 보고 있어요`} className="rounded-full border-2 border-card">
+            <Avatar uid={p.uid} name={p.name} size={26} />
+          </span>
+        ))}
       </div>
       <span className="text-[12px] text-muted">{unique.length}명이 함께 보는 중</span>
     </div>

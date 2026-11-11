@@ -237,7 +237,8 @@ export function resetOwnData(userId: string): Promise<string[]> {
     }
     await q.run('DELETE FROM docs WHERE owner = ?', [userId])
     await q.run('DELETE FROM settings WHERE user_id = ?', [userId])
-    await q.run('DELETE FROM images WHERE owner = ?', [userId])
+    // 프로필 사진은 계정 정보라 남긴다
+    await q.run("DELETE FROM images WHERE owner = ? AND id NOT LIKE 'avatar-%'", [userId])
     return [...affected]
   })
 }

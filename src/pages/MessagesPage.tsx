@@ -4,7 +4,8 @@ import { ArrowLeft, Inbox, Mail, MailOpen, PenLine, PictureInPicture2, Reply, Se
 import { toggleMiniMailbox } from '../components/messages/MiniMailboxHost'
 import { Button, EmptyState, Input, Label, Modal, PageHeader, Panel, Select, Spinner, Textarea } from '../components/ui'
 import { useFeedback } from '../components/ui/Feedback'
-import { Avatar } from '../components/share/ShareModal'
+import { Avatar, UserName } from '../components/user/UserBits'
+import { peekProfile } from '../sync/profiles'
 import { peerColor } from '../components/share/presence'
 import { useAuth } from '../auth/AuthProvider'
 import { useFriends } from '../sync/friends'
@@ -12,12 +13,19 @@ import {
   MAX_BODY, MAX_SUBJECT, deleteMessage, fetchBox, onMessagesEvent, openMessage, sendMessage, type MessageItem,
 } from '../sync/messages'
 import { cn, excerpt, formatDate, mmdd } from '../lib/utils'
+import { useProfile } from '../sync/profiles'
 
 type Box = 'inbox' | 'sent'
 
 const titleOf = (m: MessageItem) => m.subject || excerpt(m.body.split('\n')[0], 40) || '(제목 없음)'
 
 /* ── 쪽지 쓰기 ───────────────────────────────────────────── */
+function FriendOption({ id, username }: { id: string; username: string }) {
+  const p = useProfile(id)
+  const name = p?.displayName || username
+  return <option value={id}>{name !== username ? `${name} (@${username})` : name}</option>
+}
+
 export function ComposeModal({ open, onClose, defaultTo, defaultSubject, onSent }: {
   open: boolean
   onClose: () => void
@@ -48,7 +56,7 @@ export function ComposeModal({ open, onClose, defaultTo, defaultSubject, onSent 
     setBusy(true)
     try {
       const m = await sendMessage(to, subject, body)
-      toast(`${m.toName}님에게 쪽지를 보냈어요.`)
+      toast(`${peekProfile(m.toId)?.displayName || m.toName}님에게 쪽지를 보냈어요.`)
       onSent?.(m)
       onClose()
     } catch (err) {
@@ -80,7 +88,7 @@ export function ComposeModal({ open, onClose, defaultTo, defaultSubject, onSent 
             <Label>받는 사람</Label>
             <Select value={to} onChange={(e) => { setTo(e.target.value); setError('') }} autoFocus={!defaultTo}>
               <option value="">친구를 선택하세요</option>
-              {friends.map((f) => <option key={f.userId} value={f.userId}>{f.username}</option>)}
+              {friends.map((f) => <FriendOption key={f.userId} id={f.userId} username={f.username} />)}
             </Select>
           </div>
           <div>
@@ -133,7 +141,7 @@ function Letter({ m, box, onReply, onDelete, onBack }: {
           <Avatar uid={other.id} name={other.name} size={48} />
           <div className="min-w-0 flex-1">
             <p className="text-[13.5px] text-muted">{box === 'inbox' ? 'From.' : 'To.'}</p>
-            <p className="text-[17px] font-semibold text-ink">{other.name}</p>
+            <p className="text-[17px] font-semibold text-ink"><UserName uid={other.id} fallback={other.name} /></p>
           </div>
           <div className="text-right text-[13px] text-muted">
             <p>{formatDate(m.createdAt, true)}</p>
@@ -304,7 +312,7 @@ export default function MessagesPage() {
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="flex items-baseline gap-2">
-                          <span className={cn('truncate text-[14.5px]', unread ? 'font-bold text-ink' : 'font-semibold text-ink-2')}>{other.name}</span>
+                          <span className={cn('truncate text-[14.5px]', unread ? 'font-bold text-ink' : 'font-semibold text-ink-2')}><UserName uid={other.id} fallback={other.name} /></span>
                           <span className="ml-auto shrink-0 text-[12.5px] text-muted tabular-nums">{mmdd(m.createdAt)}</span>
                         </span>
                         <span className={cn('mt-0.5 block truncate text-[14px]', unread ? 'font-semibold text-ink' : 'text-ink-2')}>{titleOf(m)}</span>

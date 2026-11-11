@@ -9,6 +9,7 @@ import { ITEM_UNIT } from '../components/category/CategoryCard'
 import { wash, washLine } from '../lib/colors'
 import { useCategoryCounts } from '../lib/hooks'
 import { cn } from '../lib/utils'
+import { useDisplayName } from '../components/user/UserBits'
 
 const roundBtn = 'size-9 rounded-full! border border-line bg-card/80 text-ink-2 shadow-soft'
 import { useFeedback } from '../components/ui/Feedback'
@@ -37,6 +38,7 @@ export default function CategoryPage() {
   const location = useLocation()
   const [shareOpen, setShareOpen] = useState(false)
   const counts = useCategoryCounts()
+  const ownerName = useDisplayName(access?.ownerId, access?.ownerName ?? '')
 
   const role = access?.role ?? 'owner'
   const isOwner = role === 'owner'
@@ -50,7 +52,7 @@ export default function CategoryPage() {
     if (!user) return
     const ok = await confirm({
       title: '공유에서 나갈까요?',
-      message: `"${category.name}" 페이지가 내 사이드바에서 사라져요. 다시 보려면 ${access?.ownerName}님이 다시 초대해야 해요.`,
+      message: `"${category.name}" 페이지가 내 사이드바에서 사라져요. 다시 보려면 ${ownerName}님이 다시 초대해야 해요.`,
       confirmText: '나가기',
       danger: true,
     })
@@ -90,7 +92,7 @@ export default function CategoryPage() {
                 {!isOwner && access && (
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-card/80 px-3 py-1 text-muted">
                     {role === 'view' ? <Eye size={13} /> : <Users size={13} />}
-                    <b className="font-semibold text-ink-2">{access.ownerName}</b>님이 공유 · {ROLE_LABEL[role]}
+                    <b className="font-semibold text-ink-2">{ownerName}</b>님이 공유 · {ROLE_LABEL[role]}
                   </span>
                 )}
                 {isOwner && !!access?.members.length && (

@@ -10,10 +10,17 @@ import { MemoListItem } from '../components/memo/MemoParts'
 import { getPastel, wash, washLine } from '../lib/colors'
 import { useUI } from '../components/layout/AppLayout'
 import { cn } from '../lib/utils'
-import type { Memo } from '../db/types'
+import type { Category, Memo } from '../db/types'
+import { useDisplayName } from '../components/user/UserBits'
 
 /** 인사말 (참고 디자인과 같이 간결하게 고정) */
 const greeting = () => '안녕하세요!'
+
+/** 공유받은 카테고리 카드: 공유한 사람의 닉네임 표시 */
+function SharedCard({ cat, count, ownerId, ownerName }: { cat: Category; count: number; ownerId?: string; ownerName: string }) {
+  const name = useDisplayName(ownerId, ownerName)
+  return <CategoryCard cat={cat} count={count} sub={`${name}님이 공유`} />
+}
 
 export default function HomePage() {
   const settings = useSettings()
@@ -104,7 +111,7 @@ export default function HomePage() {
         <Section title="Shared with me" icon={<Users size={18} strokeWidth={1.7} />}>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {shared.map((c) => (
-              <CategoryCard key={c.id} cat={c} count={counts[c.id] ?? 0} sub={`${access.get(c.id)?.ownerName ?? ''}님이 공유`} />
+              <SharedCard key={c.id} cat={c} count={counts[c.id] ?? 0} ownerId={access.get(c.id)?.ownerId} ownerName={access.get(c.id)?.ownerName ?? ''} />
             ))}
           </div>
         </Section>

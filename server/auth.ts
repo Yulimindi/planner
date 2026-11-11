@@ -7,6 +7,8 @@ import { db } from './db.ts'
 export interface User {
   id: string
   username: string
+  /** 상대방에게 보이는 이름 (없으면 아이디) */
+  displayName?: string
 }
 
 export const COOKIE = 'ma_session'
@@ -93,8 +95,8 @@ export async function userFromRequest(req: IncomingMessage): Promise<User | null
   const now = Date.now()
   const hit = cache.get(token)
   if (hit && now - hit.at < CACHE_MS && now - hit.created < MAX_AGE_MS) return hit.user
-  const row = await db.get<{ id: string; username: string; created: number }>(
-    'SELECT u.id, u.username, s.created_at AS created FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = ?',
+  const row = await db.get<{ id: string; username: string; display_name: string | null; created: number }>(
+    'SELECT u.id, u.username, u.display_name, s.created_at AS created FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = ?',
     [token],
   )
   if (!row) {
@@ -105,11 +107,19 @@ export async function userFromRequest(req: IncomingMessage): Promise<User | null
     await deleteSession(token)
     return null
   }
-  const user = { id: row.id, username: row.username }
+  const user = { id: row.id, username: row.username, displayName: row.display_name?.trim() || row.username }
   cache.set(token, { user, created: Number(row.created), at: now })
   if (cache.size > 5000) cache.clear()
   return user
 }
+
+/** 닉네임이 바뀌면 캐시된 세션 사용자 정보도 갱신 */
+export function updateCachedUser(id: string, patch: Partial<User>) {
+  for (const v of cache.values()) if (v.user.id === id) v.user = { ...v.user, ...patch }
+}
+
+/** 화면 표시용 이름 */
+export const nameOf = (u: User) => u.displayName || u.username
 
 export async function findUserByName(username: string): Promise<User | null> {
   return (await db.get<User>('SELECT id, username FROM users WHERE username = ?', [username])) ?? null

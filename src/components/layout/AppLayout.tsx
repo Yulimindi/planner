@@ -7,7 +7,8 @@ import {
 import { useAccessMap, useCategoryCounts, useSettings, useSplitCategories } from '../../lib/hooks'
 import { useAuth } from '../../auth/AuthProvider'
 import { syncState } from '../../sync/engine'
-import { Avatar } from '../share/ShareModal'
+import { Avatar, UserName } from '../user/UserBits'
+import { useProfileSync } from '../../sync/profiles'
 import { PAGE_CONTAINER_ID } from '../share/presence'
 import { useFriends, useFriendsSync } from '../../sync/friends'
 import { useMessagesSync, useUnreadMessages } from '../../sync/messages'
@@ -139,7 +140,7 @@ function Sidebar({ collapsed, onToggle, onClose, mobile }: {
             <ul className="space-y-0.5">
               {shared.map((c) => (
                 <li key={c.id}>
-                  <CategoryLink cat={c} mini={mini} count={counts[c.id] ?? 0} sub={access.get(c.id)?.ownerName} />
+                  <CategoryLink cat={c} mini={mini} count={counts[c.id] ?? 0} sub={access.get(c.id)?.ownerName} subUid={access.get(c.id)?.ownerId} />
                 </li>
               ))}
             </ul>
@@ -164,7 +165,7 @@ function SectionTitle({ mini, children, action, className }: { mini: boolean; ch
   )
 }
 
-function CategoryLink({ cat, mini, count, sub }: { cat: Category; mini: boolean; count: number; sub?: string }) {
+function CategoryLink({ cat, mini, count, sub, subUid }: { cat: Category; mini: boolean; count: number; sub?: string; subUid?: string }) {
   return (
     <NavLink
       to={`/c/${cat.id}`}
@@ -182,7 +183,7 @@ function CategoryLink({ cat, mini, count, sub }: { cat: Category; mini: boolean;
         <>
           <span className="min-w-0 flex-1">
             <span className="block truncate">{cat.name}</span>
-            {sub && <span className="flex items-center gap-1 truncate text-[11px] text-muted/80"><Users size={11} /> {sub}</span>}
+            {sub && <span className="flex items-center gap-1 truncate text-[11px] text-muted/80"><Users size={11} /> {subUid ? <UserName uid={subUid} fallback={sub} /> : sub}</span>}
           </span>
           <span className="pr-1 text-[13px] font-normal text-muted tabular-nums">{count}</span>
         </>
@@ -209,7 +210,7 @@ function AccountBar({ mini }: { mini: boolean }) {
       </span>
       {!mini && (
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[13.5px] font-semibold text-ink">{user.username}</p>
+          <p className="truncate text-[13.5px] font-semibold text-ink"><UserName uid={user.id} fallback={user.username} /></p>
           <p className="truncate text-[11.5px] text-muted">{label}</p>
         </div>
       )}
@@ -318,6 +319,8 @@ export function AppLayout() {
     if (e.event === 'request') toast(`${e.name}님이 친구 요청을 보냈어요.`)
     else if (e.event === 'accepted') toast(`${e.name}님과 친구가 되었어요.`)
   })
+  // 닉네임·프로필 사진 변경 실시간 반영
+  useProfileSync()
   // 안 읽은 쪽지 수 + 새 쪽지 알림
   useMessagesSync((e) => toast(`${e.name}님에게서 쪽지가 왔어요${e.subject ? ` · ${e.subject}` : ''}`))
   const [mobileOpen, setMobileOpen] = useState(false)

@@ -1,6 +1,6 @@
 import type { Server } from 'node:http'
 import { WebSocketServer, WebSocket } from 'ws'
-import { userFromRequest, type User } from './auth.ts'
+import { nameOf, userFromRequest, type User } from './auth.ts'
 import { roleFor } from './docs.ts'
 
 interface Client {
@@ -19,6 +19,16 @@ function send(c: Client, msg: unknown) {
 }
 
 /** 지정한 사용자들의 모든 연결(탭)에 메시지 전송. exceptCid 연결은 제외 */
+/** 접속한 모든 사람에게 (프로필 변경 알림 등 민감하지 않은 정보만) */
+export function sendToAll(msg: unknown) {
+  for (const c of clients) send(c, msg)
+}
+
+/** 프로필이 바뀐 사용자의 열려 있는 연결에도 새 이름 반영 */
+export function updateClientUser(id: string, patch: Partial<User>) {
+  for (const c of clients) if (c.user.id === id) c.user = { ...c.user, ...patch }
+}
+
 export function sendToUsers(userIds: Iterable<string>, msg: unknown, exceptCid?: string) {
   const ids = new Set(userIds)
   for (const c of clients) if (ids.has(c.user.id) && c.cid !== exceptCid) send(c, msg)
@@ -109,8 +119,8 @@ export function attachRealtime(server: Server) {
               client.room = `${catId}|${room}`
               client.categoryId = catId
               const peers = roomPeers(client.room, client)
-              send(client, { type: 'peers', peers: peers.map((p) => ({ cid: p.cid, uid: p.user.id, name: p.user.username })) })
-              for (const p of peers) send(p, { type: 'joined', cid, uid: me.id, name: me.username })
+              send(client, { type: 'peers', peers: peers.map((p) => ({ cid: p.cid, uid: p.user.id, name: nameOf(p.user) })) })
+              for (const p of peers) send(p, { type: 'joined', cid, uid: me.id, name: nameOf(me) })
             }).catch(() => undefined)
             break
           }
@@ -121,7 +131,7 @@ export function attachRealtime(server: Server) {
           case 'cursor': {
             if (!client.room) return
             const valid = typeof msg.x === 'number' && typeof msg.y === 'number' && Number.isFinite(msg.x) && Number.isFinite(msg.y)
-            const payload = { type: 'cursor', cid, uid: me.id, name: me.username, x: valid ? msg.x : null, y: valid ? msg.y : null }
+            const payload = { type: 'cursor', cid, uid: me.id, name: nameOf(me), x: valid ? msg.x : null, y: valid ? msg.y : null }
             for (const p of roomPeers(client.room, client)) send(p, payload)
             break
           }

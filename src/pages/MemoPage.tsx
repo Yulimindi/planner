@@ -13,6 +13,7 @@ import { FavoriteButton, ImageAttach, TagChip, TagInput, UrlList } from '../comp
 import { MoveMemoSelect } from '../components/memo/MoveMemoSelect'
 import { CategoryIconBadge } from '../components/category/CategoryForm'
 import NotFoundPage from './NotFoundPage'
+import { UserName } from '../components/user/UserBits'
 import { CursorLayer, PeerAvatars, usePresence } from '../components/share/presence'
 import type { AccessInfo, Category } from '../db/types'
 
@@ -123,7 +124,7 @@ function MemoEditor({ memo, category, access }: { memo: Memo; category: Category
 
       {access && access.role !== 'owner' && (
         <div className="mb-4 rounded-[var(--radius-card)] border border-line bg-accent-soft/60 px-5 py-3 text-[13.5px] text-muted">
-          <b className="text-ink">{access.ownerName}</b>님이 공유한 페이지의 메모 · {access.role === 'view' ? '보기 전용' : '편집 가능'}
+          <b className="text-ink"><UserName uid={access.ownerId} fallback={access.ownerName} /></b>님이 공유한 페이지의 메모 · {access.role === 'view' ? '보기 전용' : '편집 가능'}
         </div>
       )}
       {memo.archived && (

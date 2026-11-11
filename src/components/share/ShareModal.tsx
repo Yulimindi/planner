@@ -3,13 +3,13 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { Plus, Trash2, UserPlus } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useFriends } from '../../sync/friends'
+import { Avatar, UserLabel } from '../user/UserBits'
 import { db } from '../../db/db'
 import type { Category, Role } from '../../db/types'
 import { api } from '../../sync/api'
 import { fullSync } from '../../sync/engine'
 import { Button, IconButton, Input, Label, Modal, Select } from '../ui'
 import { useFeedback } from '../ui/Feedback'
-import { peerColor } from './presence'
 
 /** 현재 페이지에서 편집 가능한지 (보기 전용 공유면 false) */
 export const CanEditContext = createContext(true)
@@ -108,7 +108,7 @@ export function ShareModal({ open, onClose, category }: { open: boolean; onClose
                 className="inline-flex h-10 items-center gap-2 rounded-full border border-line-strong bg-card pr-3.5 pl-1.5 text-[13.5px] font-medium text-ink-2 shadow-soft transition hover:border-accent/60 hover:text-ink disabled:opacity-50"
               >
                 <Avatar uid={f.userId} name={f.username} size={28} />
-                {f.username}
+                <UserLabel uid={f.userId} fallback={f.username} />
                 <Plus size={15} className="text-muted" />
               </button>
             ))}
@@ -120,13 +120,15 @@ export function ShareModal({ open, onClose, category }: { open: boolean; onClose
       <ul className="divide-y divide-line rounded-[var(--radius-ctl)] border border-line">
         <li className="flex items-center gap-3 px-3 py-2.5">
           <Avatar uid={access?.ownerId ?? ''} name={access?.ownerName ?? '나'} />
-          <span className="flex-1 text-[14px]">{access?.ownerName ?? '나'} <span className="text-muted">(나)</span></span>
+          <span className="flex min-w-0 flex-1 items-baseline gap-1.5 text-[14px]">
+            {access ? <UserLabel uid={access.ownerId} fallback={access.ownerName} /> : '나'} <span className="text-muted">(나)</span>
+          </span>
           <span className="text-[13px] text-muted">소유자</span>
         </li>
         {members.map((m) => (
           <li key={m.userId} className="flex items-center gap-3 px-3 py-2">
             <Avatar uid={m.userId} name={m.username} />
-            <span className="min-w-0 flex-1 truncate text-[14px]">{m.username}</span>
+            <UserLabel uid={m.userId} fallback={m.username} className="flex-1 text-[14px]" />
             <Select value={m.role} onChange={(e) => changeRole(m.userId, e.target.value as 'edit' | 'view')} className="h-8 w-28 text-[13px]" aria-label="권한">
               <option value="edit">편집 가능</option>
               <option value="view">보기 전용</option>
@@ -140,11 +142,4 @@ export function ShareModal({ open, onClose, category }: { open: boolean; onClose
   )
 }
 
-export function Avatar({ uid, name, size = 28 }: { uid: string; name: string; size?: number }) {
-  const c = peerColor(uid)
-  return (
-    <span className="flex shrink-0 items-center justify-center rounded-full text-[12px] font-semibold" style={{ width: size, height: size, background: c.bg, color: c.fg }}>
-      {name.slice(0, 1).toUpperCase()}
-    </span>
-  )
-}
+export { Avatar } from '../user/UserBits'

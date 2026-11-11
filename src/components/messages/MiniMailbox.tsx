@@ -6,20 +6,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArrowLeft, ExternalLink, Mail, Send, X } from 'lucide-react'
 import { fetchBox, onMessagesEvent, openMessage, sendMessage, useUnreadMessages, type MessageItem } from '../../sync/messages'
-import { peerColor } from '../share/presence'
+import { Avatar, UserName } from '../user/UserBits'
+import { peekProfile } from '../../sync/profiles'
 import { cn, excerpt, relativeTime } from '../../lib/utils'
-
-function MiniAvatar({ uid, name, size = 30 }: { uid: string; name: string; size?: number }) {
-  const c = peerColor(uid)
-  return (
-    <span
-      className="flex shrink-0 items-center justify-center rounded-full text-[11px] font-semibold"
-      style={{ width: size, height: size, background: c.bg, color: c.fg }}
-    >
-      {name.slice(0, 1).toUpperCase()}
-    </span>
-  )
-}
 
 const titleOf = (m: MessageItem) => m.subject || excerpt(m.body.split('\n')[0], 30) || '(제목 없음)'
 
@@ -98,7 +87,7 @@ export function MiniMailbox({ onClose, onOpenInApp }: {
         ) : (
           <Mail size={16} strokeWidth={1.7} className="text-accent" />
         )}
-        <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold">{current ? current.fromName : '쪽지'}</span>
+        <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold">{current ? <UserName uid={current.fromId} fallback={current.fromName} /> : '쪽지'}</span>
         {!current && unread > 0 && (
           <span className="rounded-full bg-primary px-1.5 text-[11px] leading-[18px] font-semibold text-primary-ink">{unread}</span>
         )}
@@ -136,7 +125,7 @@ export function MiniMailbox({ onClose, onOpenInApp }: {
               }}
               rows={2}
               maxLength={2000}
-              placeholder={`${current.fromName}님에게 답장…`}
+              placeholder={`${peekProfile(current.fromId)?.displayName || current.fromName}님에게 답장…`}
               className="block w-full resize-none rounded-lg bg-side/70 px-2.5 py-2 text-[13px] outline-none placeholder:text-muted/70 focus:ring-2 focus:ring-accent-soft"
             />
             <div className="mt-1.5 flex items-center justify-between">
@@ -173,12 +162,12 @@ export function MiniMailbox({ onClose, onOpenInApp }: {
                     )}
                   >
                     <span className="relative">
-                      <MiniAvatar uid={m.fromId} name={m.fromName} />
+                      <Avatar uid={m.fromId} name={m.fromName} size={30} />
                       {isUnread && <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full border-2 border-app bg-primary" />}
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-baseline gap-1.5">
-                        <span className={cn('truncate text-[13px]', isUnread ? 'font-bold' : 'font-medium text-ink-2')}>{m.fromName}</span>
+                        <span className={cn('truncate text-[13px]', isUnread ? 'font-bold' : 'font-medium text-ink-2')}><UserName uid={m.fromId} fallback={m.fromName} /></span>
                         <span className="ml-auto shrink-0 text-[11px] text-muted">{relativeTime(m.createdAt)}</span>
                       </span>
                       <span className={cn('block truncate text-[12.5px]', isUnread ? 'font-semibold text-ink' : 'text-muted')}>{titleOf(m)}</span>

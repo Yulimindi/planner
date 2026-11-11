@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Download, Info, LogOut, Palette, RotateCcw, Settings as SettingsIcon, Type, Upload, UserRound } from 'lucide-react'
 import { useAuth } from '../auth/AuthProvider'
-import { Avatar } from '../components/share/ShareModal'
+import { Avatar, UserName } from '../components/user/UserBits'
+import { ProfileEditor } from '../components/user/ProfileEditor'
 import { updateSettings } from '../db/repo'
 import { downloadBlob, exportBackup, importBackup, parseBackup, resetAllData, storageEstimate, type BackupFile, type BackupSummary } from '../db/backup'
 import { useSettings } from '../lib/hooks'
@@ -109,13 +110,17 @@ export default function SettingsPage() {
         description="앱 이름, 테마, 데이터 백업과 복원을 관리해요."
       />
       <div className="grid items-start gap-5 lg:grid-cols-2">
-        <Card icon={<UserRound size={19} strokeWidth={1.6} />} title="계정" desc="기록은 계정에 저장되어 다른 기기에서 로그인해도 그대로 보여요.">
+        <Card icon={<UserRound size={19} strokeWidth={1.6} />} title="프로필" desc="친구, 쪽지, 공유한 페이지에서 상대방에게 보이는 모습이에요." wide>
+          {user && <ProfileEditor user={user} />}
+        </Card>
+
+        <Card icon={<LogOut size={19} strokeWidth={1.6} />} title="계정" desc="기록은 계정에 저장되어 다른 기기에서 로그인해도 그대로 보여요.">
           {user && (
             <div className="flex flex-wrap items-center gap-3">
               <Avatar uid={user.id} name={user.username} size={40} />
               <div className="min-w-0 flex-1">
-                <p className="font-medium">{user.username}</p>
-                <p className="text-[12px] text-muted">다른 사람이 이 아이디로 페이지를 공유할 수 있어요.</p>
+                <p className="font-medium"><UserName uid={user.id} fallback={user.username} /></p>
+                <p className="text-[12px] text-muted">@{user.username}</p>
               </div>
               <Button icon={<LogOut size={16} />} onClick={async () => {
                 const ok = await confirm({ title: '로그아웃할까요?', message: '이 브라우저에 저장된 캐시가 지워져요. 기록은 계정에 남아 있어요.', confirmText: '로그아웃' })

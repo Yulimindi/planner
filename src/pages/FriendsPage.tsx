@@ -3,7 +3,8 @@ import { Check, Clock3, Inbox, Mail, Send, UserMinus, UserPlus, Users, X } from 
 import { Link } from 'react-router-dom'
 import { Button, EmptyState, IconButton, PageHeader, Panel, Spinner } from '../components/ui'
 import { useFeedback } from '../components/ui/Feedback'
-import { Avatar } from '../components/share/ShareModal'
+import { Avatar, UserLabel } from '../components/user/UserBits'
+import { peekProfile } from '../sync/profiles'
 import { acceptFriendRequest, removeFriend, sendFriendRequest, useFriends, type FriendEntry } from '../sync/friends'
 import { useAuth } from '../auth/AuthProvider'
 import { cn, formatDate, relativeTime } from '../lib/utils'
@@ -14,7 +15,7 @@ function PersonRow({ f, sub, actions }: { f: FriendEntry; sub: string; actions: 
     <div className="-mx-2 flex items-center gap-4 rounded-[var(--radius-ctl)] px-2 py-3.5 transition hover:bg-hover">
       <Avatar uid={f.userId} name={f.username} size={44} />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[15.5px] font-semibold tracking-[-0.01em]">{f.username}</p>
+        <UserLabel uid={f.userId} fallback={f.username} className="max-w-full text-[15.5px] font-semibold tracking-[-0.01em]" />
         <p className="mt-0.5 text-[13px] text-muted">{sub}</p>
       </div>
       <div className="flex shrink-0 items-center gap-2">{actions}</div>
@@ -23,6 +24,8 @@ function PersonRow({ f, sub, actions }: { f: FriendEntry; sub: string; actions: 
 }
 
 export default function FriendsPage() {
+  // 확인 창·알림 문구에 쓰는 이름 (캐시된 닉네임, 없으면 아이디)
+  const nameOf = (f: FriendEntry) => peekProfile(f.userId)?.displayName || f.username
   const { friends, incoming, outgoing, loaded } = useFriends()
   const { user } = useAuth()
   const { toast, confirm, run } = useFeedback()
@@ -49,7 +52,7 @@ export default function FriendsPage() {
 
   const unfriend = async (f: FriendEntry) => {
     const ok = await confirm({
-      title: `${f.username}님을 친구에서 삭제할까요?`,
+      title: `${nameOf(f)}님을 친구에서 삭제할까요?`,
       message: '이미 공유한 페이지는 그대로 유지돼요. 공유를 끊으려면 각 카테고리의 공유 설정에서 해제해 주세요.',
       confirmText: '친구 삭제',
       danger: true,
@@ -143,7 +146,7 @@ export default function FriendsPage() {
                         sub={`${relativeTime(f.at)} 요청`}
                         actions={
                           <>
-                            <Button size="sm" variant="primary" icon={<Check size={15} />} onClick={() => run(() => acceptFriendRequest(f.userId), `${f.username}님과 친구가 되었어요.`)}>
+                            <Button size="sm" variant="primary" icon={<Check size={15} />} onClick={() => run(() => acceptFriendRequest(f.userId), `${nameOf(f)}님과 친구가 되었어요.`)}>
                               수락
                             </Button>
                             <IconButton label="거절" onClick={() => run(() => removeFriend(f.userId), '요청을 거절했어요.')}>

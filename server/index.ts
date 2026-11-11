@@ -5,11 +5,12 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { closeDb, db, initSchema, isRemote } from './db.ts'
 import {
-  HttpError, clearCookie, createSession, createUser, deleteSession, findUserByName, readToken, requireAuth,
-  sessionCookie, validateCredentials, verifyUser, type AuthedRequest,
+  HttpError, clearCookie, createSession, createUser, deleteSession, findUserByName, nameOf, readToken, requireAuth,
+  sessionCookie, updateCachedUser, validateCredentials, verifyUser, type AuthedRequest,
 } from './auth.ts'
+import { getProfile, getProfiles, migrateProfile, readAvatar, removeAvatar, setAvatar, setNickname, validateNickname, MAX_AVATAR_BYTES } from './profile.ts'
 import { accessInfo, applyOps, assertOwner, audienceOf, resetOwnData, roleFor, syncPayload, type Op } from './docs.ts'
-import { attachRealtime, revalidateRooms, sendToUsers } from './realtime.ts'
+import { attachRealtime, revalidateRooms, sendToAll, sendToUsers, updateClientUser } from './realtime.ts'
 import { acceptFriend, listFriends, removeRelation, requestFriend } from './friends.ts'
 import { deleteMessage, listMessages, openMessage, sendMessage, unreadCount } from './messages.ts'
 
@@ -56,8 +57,54 @@ app.post('/api/logout', async (req, res) => {
   res.json({ ok: true })
 })
 
-app.get('/api/me', requireAuth, (req, res) => {
-  res.json({ user: userOf(req) })
+app.get('/api/me', requireAuth, async (req, res) => {
+  const me = userOf(req)
+  const p = await getProfile(me.id)
+  res.json({ user: { id: me.id, username: me.username, displayName: p?.displayName ?? me.username, avatarVer: p?.avatarVer ?? null } })
+})
+
+/* ── 프로필 (닉네임 · 사진) ───────────────────────────────── */
+async function profileChanged(id: string) {
+  const p = await getProfile(id)
+  if (!p) return null
+  updateCachedUser(id, { displayName: p.displayName })
+  updateClientUser(id, { displayName: p.displayName })
+  // 화면에 이 사람을 보여주고 있을 수 있는 모든 접속자에게 새로 받도록 알림
+  sendToAll({ type: 'profile', userId: id })
+  return p
+}
+
+app.patch('/api/me', requireAuth, json, async (req, res) => {
+  const me = userOf(req)
+  await setNickname(me.id, validateNickname(req.body?.displayName))
+  res.json({ profile: await profileChanged(me.id) })
+})
+
+app.put('/api/me/avatar', requireAuth, express.raw({ type: () => true, limit: MAX_AVATAR_BYTES + 1024 }), async (req, res) => {
+  const me = userOf(req)
+  await setAvatar(me.id, String(req.headers['content-type'] ?? ''), req.body as Buffer)
+  res.json({ profile: await profileChanged(me.id) })
+})
+
+app.delete('/api/me/avatar', requireAuth, async (req, res) => {
+  const me = userOf(req)
+  await removeAvatar(me.id)
+  res.json({ profile: await profileChanged(me.id) })
+})
+
+app.post('/api/profiles', requireAuth, json, async (req, res) => {
+  const ids = req.body?.ids
+  if (!Array.isArray(ids)) throw new HttpError(400, '잘못된 요청이에요.')
+  res.json({ profiles: await getProfiles(ids as string[]) })
+})
+
+// 주소에 ?v=버전이 붙으므로 오래 캐시해도 바뀌면 새로 받는다
+app.get('/api/avatars/:userId', requireAuth, async (req, res) => {
+  const row = await readAvatar(String(req.params.userId))
+  if (!row) throw new HttpError(404, '프로필 사진이 없어요.')
+  res.setHeader('Content-Type', row.type)
+  res.setHeader('Cache-Control', 'private, max-age=31536000, immutable')
+  res.send(Buffer.from(row.data instanceof ArrayBuffer ? new Uint8Array(row.data) : row.data))
 })
 
 /* ── 동기화 ─────────────────────────────────────────────── */
@@ -149,7 +196,7 @@ app.post('/api/friends', requireAuth, json, async (req, res) => {
   if (typeof username !== 'string' || !username.trim()) throw new HttpError(400, '친구의 아이디를 입력해 주세요.')
   const { target, accepted } = await requestFriend(me, username)
   notifyFriends([me.id])
-  notifyFriends([target.id], accepted ? { event: 'accepted', name: me.username } : { event: 'request', name: me.username })
+  notifyFriends([target.id], accepted ? { event: 'accepted', name: nameOf(me) } : { event: 'request', name: nameOf(me) })
   res.json({ accepted, friends: await listFriends(me.id) })
 })
 
@@ -158,7 +205,7 @@ app.post('/api/friends/:userId/accept', requireAuth, async (req, res) => {
   const other = String(req.params.userId)
   await acceptFriend(me.id, other)
   notifyFriends([me.id])
-  notifyFriends([other], { event: 'accepted', name: me.username })
+  notifyFriends([other], { event: 'accepted', name: nameOf(me) })
   res.json(await listFriends(me.id))
 })
 
@@ -194,7 +241,7 @@ app.post('/api/messages', requireAuth, json, async (req, res) => {
   const { to, subject, body } = req.body ?? {}
   if (typeof to !== 'string' || typeof body !== 'string') throw new HttpError(400, '받는 사람과 내용을 확인해 주세요.')
   const item = await sendMessage(me, to, typeof subject === 'string' ? subject : '', body)
-  sendToUsers([item.toId], { type: 'messages', event: 'received', name: me.username, subject: item.subject || item.body.slice(0, 30) })
+  sendToUsers([item.toId], { type: 'messages', event: 'received', name: nameOf(me), subject: item.subject || item.body.slice(0, 30) })
   sendToUsers([me.id], { type: 'messages', event: 'sent' }, clientId(req))
   res.json({ item })
 })
@@ -288,6 +335,7 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 })
 
 await initSchema()
+await migrateProfile()
 const server = createServer(app)
 attachRealtime(server)
 server.listen(PORT, () => {
