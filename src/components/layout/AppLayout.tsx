@@ -11,6 +11,7 @@ import { Avatar } from '../share/ShareModal'
 import { PAGE_CONTAINER_ID } from '../share/presence'
 import { useFriends, useFriendsSync } from '../../sync/friends'
 import { useMessagesSync, useUnreadMessages } from '../../sync/messages'
+import { MiniMailboxHost, toggleMiniMailbox, useMiniMailboxOpen } from '../messages/MiniMailboxHost'
 import { useFeedback } from '../ui/Feedback'
 import { updateSettings } from '../../db/repo'
 import { cn } from '../../lib/utils'
@@ -242,6 +243,29 @@ function HomeBackdrop() {
   )
 }
 
+/** 상단의 미니 쪽지창 버튼 (안 읽은 쪽지 수 표시) */
+function MiniMailboxButton() {
+  const unread = useUnreadMessages()
+  const open = useMiniMailboxOpen()
+  return (
+    <span className="relative">
+      <IconButton
+        label={open ? '미니 쪽지창 닫기' : '미니 쪽지창 열기'}
+        title={open ? '미니 쪽지창 닫기' : '쪽지를 작은 창으로 띄워 보기'}
+        className={cn('size-11 rounded-full! border border-line bg-card/90 text-ink-2 shadow-soft', open && 'border-accent/50 bg-accent-soft text-ink')}
+        onClick={toggleMiniMailbox}
+      >
+        <Mail size={18} strokeWidth={1.6} />
+      </IconButton>
+      {unread > 0 && (
+        <span className="pointer-events-none absolute -top-0.5 -right-0.5 min-w-[18px] rounded-full border-2 border-app bg-primary px-1 text-center text-[10.5px] leading-[14px] font-bold text-primary-ink">
+          {unread > 99 ? '99+' : unread}
+        </span>
+      )}
+    </span>
+  )
+}
+
 /** 데스크톱 상단: 전체 검색 + 테마 전환 */
 function TopBar() {
   const settings = useSettings()
@@ -274,6 +298,7 @@ function TopBar() {
           />
         </form>
       )}
+      <MiniMailboxButton />
       <IconButton
         label={dark ? '밝은 테마로' : '어두운 테마로'}
         className="size-11 rounded-full! border border-line bg-card/90 text-ink-2 shadow-soft"
@@ -356,6 +381,7 @@ export function AppLayout() {
       </div>
 
       <CategoryFormModal open={catForm.open} category={catForm.cat} onClose={() => setCatForm({ open: false })} />
+      <MiniMailboxHost />
       <QuickMemoModal open={quickOpen} onClose={() => setQuickOpen(false)} />
     </UIContext.Provider>
   )

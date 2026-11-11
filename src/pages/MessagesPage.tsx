@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Inbox, Mail, MailOpen, PenLine, Reply, Send, Trash2 } from 'lucide-react'
+import { ArrowLeft, Inbox, Mail, MailOpen, PenLine, PictureInPicture2, Reply, Send, Trash2 } from 'lucide-react'
+import { toggleMiniMailbox } from '../components/messages/MiniMailboxHost'
 import { Button, EmptyState, Input, Label, Modal, PageHeader, Panel, Select, Spinner, Textarea } from '../components/ui'
 import { useFeedback } from '../components/ui/Feedback'
 import { Avatar } from '../components/share/ShareModal'
@@ -245,7 +246,14 @@ export default function MessagesPage() {
         eyebrow={<><Mail size={17} strokeWidth={1.6} /> {box === 'inbox' ? `안 읽은 쪽지 ${unreadHere}통` : '보낸 쪽지'}</>}
         title="Messages"
         description="친구와 짧은 쪽지를 주고받아요. 대화방이 아니라 한 장씩 보내는 편지예요."
-        actions={<Button variant="primary" icon={<PenLine size={16} />} onClick={() => setCompose({ open: true })}>쪽지 쓰기</Button>}
+        actions={
+          <>
+            <Button className="hidden md:inline-flex" icon={<PictureInPicture2 size={16} />} onClick={toggleMiniMailbox} title="다른 창 위에 작게 띄워두고 쪽지를 확인해요">
+              미니 쪽지창
+            </Button>
+            <Button variant="primary" icon={<PenLine size={16} />} onClick={() => setCompose({ open: true })}>쪽지 쓰기</Button>
+          </>
+        }
       />
 
       <div className="grid items-start gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
