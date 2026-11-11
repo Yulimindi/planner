@@ -131,6 +131,20 @@ export async function initSchema() {
         PRIMARY KEY (from_id, to_id)
       )`,
       'CREATE INDEX IF NOT EXISTS friend_requests_to ON friend_requests(to_id)',
+      // 쪽지 (보낸/받은 사람이 각자 삭제 가능)
+      `CREATE TABLE IF NOT EXISTS messages (
+        id TEXT PRIMARY KEY,
+        from_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        to_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        subject TEXT NOT NULL,
+        body TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        read_at INTEGER,
+        sender_deleted INTEGER NOT NULL DEFAULT 0,
+        recipient_deleted INTEGER NOT NULL DEFAULT 0
+      )`,
+      'CREATE INDEX IF NOT EXISTS messages_to ON messages(to_id, created_at)',
+      'CREATE INDEX IF NOT EXISTS messages_from ON messages(from_id, created_at)',
     ],
     'write',
   )

@@ -15,6 +15,7 @@ import MemoPage from './pages/MemoPage'
 import NotFoundPage from './pages/NotFoundPage'
 import LoginPage from './pages/LoginPage'
 import FriendsPage from './pages/FriendsPage'
+import MessagesPage from './pages/MessagesPage'
 import { AuthProvider, useAuth } from './auth/AuthProvider'
 import { Button } from './components/ui'
 
@@ -79,6 +80,7 @@ function AuthGate() {
         <Route path="favorites" element={<FavoritesPage />} />
         <Route path="search" element={<SearchPage />} />
         <Route path="friends" element={<FriendsPage />} />
+        <Route path="messages" element={<MessagesPage />} />
         <Route path="categories" element={<CategoriesPage />} />
         <Route path="archive" element={<ArchivePage />} />
         <Route path="settings" element={<SettingsPage />} />

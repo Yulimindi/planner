@@ -11,6 +11,7 @@ import {
 import { accessInfo, applyOps, assertOwner, audienceOf, resetOwnData, roleFor, syncPayload, type Op } from './docs.ts'
 import { attachRealtime, revalidateRooms, sendToUsers } from './realtime.ts'
 import { acceptFriend, listFriends, removeRelation, requestFriend } from './friends.ts'
+import { deleteMessage, listMessages, openMessage, sendMessage, unreadCount } from './messages.ts'
 
 const PORT = Number(process.env.PORT ?? 3001)
 const here = dirname(fileURLToPath(import.meta.url))
@@ -167,6 +168,42 @@ app.delete('/api/friends/:userId', requireAuth, async (req, res) => {
   const other = String(req.params.userId)
   if (await removeRelation(me.id, other)) notifyFriends([me.id, other])
   res.json(await listFriends(me.id))
+})
+
+/* ── 쪽지 ───────────────────────────────────────────────── */
+app.get('/api/messages', requireAuth, async (req, res) => {
+  const me = userOf(req).id
+  const box = req.query.box === 'sent' ? 'sent' : 'inbox'
+  res.json({ items: await listMessages(me, box), unread: await unreadCount(me) })
+})
+
+app.get('/api/messages/unread', requireAuth, async (req, res) => {
+  res.json({ unread: await unreadCount(userOf(req).id) })
+})
+
+app.get('/api/messages/:id', requireAuth, async (req, res) => {
+  const me = userOf(req)
+  const { item, justRead } = await openMessage(me.id, String(req.params.id))
+  // 읽음 표시를 보낸 사람 화면과 내 다른 탭에도 반영
+  if (justRead) sendToUsers([item.fromId, me.id], { type: 'messages', event: 'read', id: item.id }, clientId(req))
+  res.json({ item, unread: await unreadCount(me.id) })
+})
+
+app.post('/api/messages', requireAuth, json, async (req, res) => {
+  const me = userOf(req)
+  const { to, subject, body } = req.body ?? {}
+  if (typeof to !== 'string' || typeof body !== 'string') throw new HttpError(400, '받는 사람과 내용을 확인해 주세요.')
+  const item = await sendMessage(me, to, typeof subject === 'string' ? subject : '', body)
+  sendToUsers([item.toId], { type: 'messages', event: 'received', name: me.username, subject: item.subject || item.body.slice(0, 30) })
+  sendToUsers([me.id], { type: 'messages', event: 'sent' }, clientId(req))
+  res.json({ item })
+})
+
+app.delete('/api/messages/:id', requireAuth, async (req, res) => {
+  const me = userOf(req)
+  await deleteMessage(me.id, String(req.params.id))
+  sendToUsers([me.id], { type: 'messages', event: 'deleted' }, clientId(req))
+  res.json({ ok: true, unread: await unreadCount(me.id) })
 })
 
 /* ── 공유 ───────────────────────────────────────────────── */

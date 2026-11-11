@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Check, Clock3, Inbox, Send, UserMinus, UserPlus, Users, X } from 'lucide-react'
+import { Check, Clock3, Inbox, Mail, Send, UserMinus, UserPlus, Users, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { Button, EmptyState, IconButton, PageHeader, Panel, Spinner } from '../components/ui'
 import { useFeedback } from '../components/ui/Feedback'
 import { Avatar } from '../components/share/ShareModal'
@@ -108,9 +109,17 @@ export default function FriendsPage() {
                     f={f}
                     sub={`${formatDate(f.at)}부터 친구`}
                     actions={
-                      <IconButton label="친구 삭제" className="hover:text-danger" onClick={() => unfriend(f)}>
-                        <UserMinus size={17} />
-                      </IconButton>
+                      <>
+                        <Link
+                          to={`/messages?to=${f.userId}`}
+                          className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line-strong bg-card px-4 text-[13px] font-medium text-ink-2 transition hover:bg-hover hover:text-ink"
+                        >
+                          <Mail size={15} /> 쪽지 보내기
+                        </Link>
+                        <IconButton label="친구 삭제" className="hover:text-danger" onClick={() => unfriend(f)}>
+                          <UserMinus size={17} />
+                        </IconButton>
+                      </>
                     }
                   />
                 ))}

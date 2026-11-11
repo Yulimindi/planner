@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, useSyncExternalStore } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
-  Archive, FolderOpen, Home, LibraryBig, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, PenLine, Plus, Search, Settings,
+  Archive, FolderOpen, Home, LibraryBig, LogOut, Mail, Menu, Moon, PanelLeftClose, PanelLeftOpen, PenLine, Plus, Search, Settings,
   Star, Sun, Users, X,
 } from 'lucide-react'
 import { useAccessMap, useCategoryCounts, useSettings, useSplitCategories } from '../../lib/hooks'
@@ -10,6 +10,7 @@ import { syncState } from '../../sync/engine'
 import { Avatar } from '../share/ShareModal'
 import { PAGE_CONTAINER_ID } from '../share/presence'
 import { useFriends, useFriendsSync } from '../../sync/friends'
+import { useMessagesSync, useUnreadMessages } from '../../sync/messages'
 import { useFeedback } from '../ui/Feedback'
 import { updateSettings } from '../../db/repo'
 import { cn } from '../../lib/utils'
@@ -35,6 +36,7 @@ const MENU = [
   { to: '/favorites', label: 'Favorites', icon: Star },
   { to: '/search', label: 'Search', icon: Search },
   { to: '/friends', label: 'Friends', icon: Users },
+  { to: '/messages', label: 'Messages', icon: Mail },
   { to: '/categories', label: 'Categories', icon: FolderOpen },
   { to: '/archive', label: 'Archive', icon: Archive },
   { to: '/settings', label: 'Settings', icon: Settings },
@@ -52,6 +54,11 @@ function Sidebar({ collapsed, onToggle, onClose, mobile }: {
   const counts = useCategoryCounts()
   const { openCategoryForm } = useUI()
   const { incoming } = useFriends()
+  const unreadMessages = useUnreadMessages()
+  const badges: Record<string, { n: number; label: string }> = {
+    '/friends': { n: incoming.length, label: `받은 친구 요청 ${incoming.length}개` },
+    '/messages': { n: unreadMessages, label: `안 읽은 쪽지 ${unreadMessages}통` },
+  }
   const mini = collapsed && !mobile
 
   const itemCls = ({ isActive }: { isActive: boolean }) =>
@@ -86,12 +93,12 @@ function Sidebar({ collapsed, onToggle, onClose, mobile }: {
               <NavLink to={to} end={end} className={(s) => cn(itemCls(s), 'relative')} title={mini ? label : undefined}>
                 <Icon size={20} strokeWidth={1.6} />
                 {!mini && <span className="flex-1">{label}</span>}
-                {to === '/friends' && incoming.length > 0 && (
+                {!!badges[to]?.n && (
                   <span
-                    className={cn('rounded-full bg-primary px-1.5 text-[11.5px] leading-[18px] font-semibold text-primary-ink', mini && 'absolute top-1 right-3')}
-                    aria-label={`받은 친구 요청 ${incoming.length}개`}
+                    className={cn('min-w-[18px] rounded-full bg-primary px-1.5 text-center text-[11.5px] leading-[18px] font-semibold text-primary-ink', mini && 'absolute top-1 right-3')}
+                    aria-label={badges[to].label}
                   >
-                    {incoming.length}
+                    {badges[to].n > 99 ? '99+' : badges[to].n}
                   </span>
                 )}
               </NavLink>
@@ -286,6 +293,8 @@ export function AppLayout() {
     if (e.event === 'request') toast(`${e.name}님이 친구 요청을 보냈어요.`)
     else if (e.event === 'accepted') toast(`${e.name}님과 친구가 되었어요.`)
   })
+  // 안 읽은 쪽지 수 + 새 쪽지 알림
+  useMessagesSync((e) => toast(`${e.name}님에게서 쪽지가 왔어요${e.subject ? ` · ${e.subject}` : ''}`))
   const [mobileOpen, setMobileOpen] = useState(false)
   const [catForm, setCatForm] = useState<{ open: boolean; cat?: Category }>({ open: false })
   const [quickOpen, setQuickOpen] = useState(false)
