@@ -121,6 +121,16 @@ export async function initSchema() {
         created_at INTEGER NOT NULL
       )`,
       'CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user_id)',
+      // 친구 요청/관계 (status: pending | accepted)
+      `CREATE TABLE IF NOT EXISTS friend_requests (
+        from_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        to_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        status TEXT NOT NULL CHECK (status IN ('pending', 'accepted')),
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        PRIMARY KEY (from_id, to_id)
+      )`,
+      'CREATE INDEX IF NOT EXISTS friend_requests_to ON friend_requests(to_id)',
     ],
     'write',
   )

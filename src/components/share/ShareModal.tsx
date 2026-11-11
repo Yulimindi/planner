@@ -1,6 +1,8 @@
 import { createContext, useContext, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Trash2, UserPlus } from 'lucide-react'
+import { Plus, Trash2, UserPlus } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { useFriends } from '../../sync/friends'
 import { db } from '../../db/db'
 import type { Category, Role } from '../../db/types'
 import { api } from '../../sync/api'
@@ -26,13 +28,14 @@ export function ShareModal({ open, onClose, category }: { open: boolean; onClose
   // 서버 응답 후 로컬 권한 정보를 최신으로 맞춘다
   const refresh = () => fullSync().catch(() => undefined)
 
-  const invite = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!username.trim()) return
+  const { friends } = useFriends()
+
+  const inviteName = async (name: string) => {
+    if (!name.trim()) return
     setBusy(true)
     setError('')
     try {
-      await api(`/api/shares/${category.id}`, { body: { username: username.trim(), role } })
+      await api(`/api/shares/${category.id}`, { body: { username: name.trim(), role } })
       await refresh()
       setUsername('')
     } catch (err) {
@@ -40,6 +43,11 @@ export function ShareModal({ open, onClose, category }: { open: boolean; onClose
     } finally {
       setBusy(false)
     }
+  }
+
+  const invite = (e: React.FormEvent) => {
+    e.preventDefault()
+    void inviteName(username)
   }
 
   const changeRole = (userId: string, r: 'edit' | 'view') =>
@@ -62,6 +70,8 @@ export function ShareModal({ open, onClose, category }: { open: boolean; onClose
   }
 
   const members = access?.members ?? []
+  // 아직 이 페이지에 초대하지 않은 친구
+  const invitable = friends.filter((f) => !members.some((m) => m.userId === f.userId))
 
   return (
     <Modal open={open} onClose={onClose} title={`"${category.name}" 공유`}>
@@ -78,6 +88,33 @@ export function ShareModal({ open, onClose, category }: { open: boolean; onClose
         {error && <p className="mt-1.5 text-[12px] text-danger">{error}</p>}
         <p className="mt-1.5 text-[12px] text-muted">초대받은 사람의 사이드바 ‘공유받은 페이지’에 바로 나타나고, 같은 페이지를 보면 서로의 마우스가 보여요.</p>
       </form>
+
+      <div className="mb-6">
+        <Label hint={friends.length ? `위에서 고른 권한(${role === 'edit' ? '편집 가능' : '보기 전용'})으로 초대돼요` : undefined}>친구 목록에서 초대</Label>
+        {friends.length === 0 ? (
+          <p className="rounded-[var(--radius-ctl)] bg-side px-3.5 py-3 text-[13px] text-muted">
+            아직 친구가 없어요. <Link to="/friends" onClick={onClose} className="font-medium text-ink-2 underline underline-offset-2">Friends</Link>에서 친구를 추가하면 여기서 바로 고를 수 있어요.
+          </p>
+        ) : invitable.length === 0 ? (
+          <p className="rounded-[var(--radius-ctl)] bg-side px-3.5 py-3 text-[13px] text-muted">모든 친구가 이미 함께하고 있어요.</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {invitable.map((f) => (
+              <button
+                key={f.userId}
+                type="button"
+                disabled={busy}
+                onClick={() => void inviteName(f.username)}
+                className="inline-flex h-10 items-center gap-2 rounded-full border border-line-strong bg-card pr-3.5 pl-1.5 text-[13.5px] font-medium text-ink-2 shadow-soft transition hover:border-accent/60 hover:text-ink disabled:opacity-50"
+              >
+                <Avatar uid={f.userId} name={f.username} size={28} />
+                {f.username}
+                <Plus size={15} className="text-muted" />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       <Label>함께하는 사람</Label>
       <ul className="divide-y divide-line rounded-[var(--radius-ctl)] border border-line">

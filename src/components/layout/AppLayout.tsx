@@ -9,6 +9,8 @@ import { useAuth } from '../../auth/AuthProvider'
 import { syncState } from '../../sync/engine'
 import { Avatar } from '../share/ShareModal'
 import { PAGE_CONTAINER_ID } from '../share/presence'
+import { useFriends, useFriendsSync } from '../../sync/friends'
+import { useFeedback } from '../ui/Feedback'
 import { updateSettings } from '../../db/repo'
 import { cn } from '../../lib/utils'
 import { CategoryFormModal, CategoryIconBadge } from '../category/CategoryForm'
@@ -32,6 +34,7 @@ const MENU = [
   { to: '/quick', label: 'Quick Memo', icon: PenLine },
   { to: '/favorites', label: 'Favorites', icon: Star },
   { to: '/search', label: 'Search', icon: Search },
+  { to: '/friends', label: 'Friends', icon: Users },
   { to: '/categories', label: 'Categories', icon: FolderOpen },
   { to: '/archive', label: 'Archive', icon: Archive },
   { to: '/settings', label: 'Settings', icon: Settings },
@@ -48,6 +51,7 @@ function Sidebar({ collapsed, onToggle, onClose, mobile }: {
   const access = useAccessMap()
   const counts = useCategoryCounts()
   const { openCategoryForm } = useUI()
+  const { incoming } = useFriends()
   const mini = collapsed && !mobile
 
   const itemCls = ({ isActive }: { isActive: boolean }) =>
@@ -79,9 +83,17 @@ function Sidebar({ collapsed, onToggle, onClose, mobile }: {
         <ul className="space-y-1.5">
           {MENU.map(({ to, label, icon: Icon, end }) => (
             <li key={to}>
-              <NavLink to={to} end={end} className={itemCls} title={mini ? label : undefined}>
+              <NavLink to={to} end={end} className={(s) => cn(itemCls(s), 'relative')} title={mini ? label : undefined}>
                 <Icon size={20} strokeWidth={1.6} />
-                {!mini && <span>{label}</span>}
+                {!mini && <span className="flex-1">{label}</span>}
+                {to === '/friends' && incoming.length > 0 && (
+                  <span
+                    className={cn('rounded-full bg-primary px-1.5 text-[11.5px] leading-[18px] font-semibold text-primary-ink', mini && 'absolute top-1 right-3')}
+                    aria-label={`받은 친구 요청 ${incoming.length}개`}
+                  >
+                    {incoming.length}
+                  </span>
+                )}
               </NavLink>
             </li>
           ))}
@@ -268,6 +280,12 @@ function TopBar() {
 
 export function AppLayout() {
   const settings = useSettings()
+  const { toast } = useFeedback()
+  // 친구 목록 동기화 + 요청/수락 알림
+  useFriendsSync((e) => {
+    if (e.event === 'request') toast(`${e.name}님이 친구 요청을 보냈어요.`)
+    else if (e.event === 'accepted') toast(`${e.name}님과 친구가 되었어요.`)
+  })
   const [mobileOpen, setMobileOpen] = useState(false)
   const [catForm, setCatForm] = useState<{ open: boolean; cat?: Category }>({ open: false })
   const [quickOpen, setQuickOpen] = useState(false)

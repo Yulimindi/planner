@@ -10,6 +10,7 @@ import {
 } from './auth.ts'
 import { accessInfo, applyOps, assertOwner, audienceOf, resetOwnData, roleFor, syncPayload, type Op } from './docs.ts'
 import { attachRealtime, revalidateRooms, sendToUsers } from './realtime.ts'
+import { acceptFriend, listFriends, removeRelation, requestFriend } from './friends.ts'
 
 const PORT = Number(process.env.PORT ?? 3001)
 const here = dirname(fileURLToPath(import.meta.url))
@@ -131,6 +132,41 @@ app.get('/api/images/:id', requireAuth, async (req, res) => {
 app.delete('/api/images/:id', requireAuth, async (req, res) => {
   await db.run('DELETE FROM images WHERE id = ? AND owner = ?', [String(req.params.id), userOf(req).id])
   res.json({ ok: true })
+})
+
+/* ── 친구 ───────────────────────────────────────────────── */
+// 관계가 바뀌면 두 사람 모두에게 알려 목록을 다시 받게 한다
+const notifyFriends = (ids: string[], extra: Record<string, unknown> = {}) => sendToUsers(ids, { type: 'friends', ...extra })
+
+app.get('/api/friends', requireAuth, async (req, res) => {
+  res.json(await listFriends(userOf(req).id))
+})
+
+app.post('/api/friends', requireAuth, json, async (req, res) => {
+  const me = userOf(req)
+  const username = req.body?.username
+  if (typeof username !== 'string' || !username.trim()) throw new HttpError(400, '친구의 아이디를 입력해 주세요.')
+  const { target, accepted } = await requestFriend(me, username)
+  notifyFriends([me.id])
+  notifyFriends([target.id], accepted ? { event: 'accepted', name: me.username } : { event: 'request', name: me.username })
+  res.json({ accepted, friends: await listFriends(me.id) })
+})
+
+app.post('/api/friends/:userId/accept', requireAuth, async (req, res) => {
+  const me = userOf(req)
+  const other = String(req.params.userId)
+  await acceptFriend(me.id, other)
+  notifyFriends([me.id])
+  notifyFriends([other], { event: 'accepted', name: me.username })
+  res.json(await listFriends(me.id))
+})
+
+// 거절 · 요청 취소 · 친구 삭제
+app.delete('/api/friends/:userId', requireAuth, async (req, res) => {
+  const me = userOf(req)
+  const other = String(req.params.userId)
+  if (await removeRelation(me.id, other)) notifyFriends([me.id, other])
+  res.json(await listFriends(me.id))
 })
 
 /* ── 공유 ───────────────────────────────────────────────── */
