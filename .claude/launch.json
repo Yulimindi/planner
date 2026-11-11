@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "my-archive",
+      "runtimeExecutable": "C:/Program Files/nodejs/node.exe",
+      "runtimeArgs": ["scripts/dev.mjs", "--port", "5173", "--strictPort", "--host", "127.0.0.1"],
+      "port": 5173,
+      "autoPort": false
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+# Render Blueprint — 대시보드에서 New > Blueprint 로 이 저장소를 연결하면 자동 설정됩니다.
+services:
+  - type: web
+    name: my-archive
+    runtime: node
+    plan: free
+    # Turso DB와 같은(가까운) 지역에 두어야 DB 응답이 빠릅니다. (Turso: AWS us-west-2 권장)
+    region: oregon
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      # 아래 두 값은 Render 대시보드에서 직접 입력합니다 (저장소에 올리지 않음)
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false

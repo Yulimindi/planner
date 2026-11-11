@@ -1,0 +1,115 @@
+@import "tailwindcss";
+
+/* ── Theme tokens ──────────────────────────────────────────── */
+:root,
+[data-theme="ivory"] {
+  --app-bg: #fdfcf9;
+  --card-bg: #ffffff;
+  --side-bg: #f3f0eb;
+  --ink: #4f4b47;
+  --muted: #918a82;
+  --line: #eae7e1;
+  --hover: #f6f3ee;
+  --accent: #8a7f9e;
+  --accent-soft: #eae7f0;
+  --danger: #b4736d;
+  --danger-soft: #f4e7e5;
+  --tint: 100%;
+  color-scheme: light;
+}
+
+[data-theme="mist"] {
+  --app-bg: #fafbfc;
+  --card-bg: #ffffff;
+  --side-bg: #eef1f4;
+  --ink: #474c52;
+  --muted: #8a9097;
+  --line: #e3e7eb;
+  --hover: #f2f5f7;
+  --accent: #7890a3;
+  --accent-soft: #e8edf1;
+  --danger: #b4736d;
+  --danger-soft: #f4e7e5;
+  --tint: 100%;
+  color-scheme: light;
+}
+
+[data-theme="cocoa"] {
+  --app-bg: #2a2725;
+  --card-bg: #33302d;
+  --side-bg: #24211f;
+  --ink: #ebe6df;
+  --muted: #a39b92;
+  --line: #45403b;
+  --hover: #3b3733;
+  --accent: #b8acd0;
+  --accent-soft: #433e4b;
+  --danger: #d9958e;
+  --danger-soft: #4a3533;
+  --tint: 24%;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-app: var(--app-bg);
+  --color-card: var(--card-bg);
+  --color-side: var(--side-bg);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-hover: var(--hover);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --font-sans: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
+  --shadow-soft: 0 1px 2px rgb(79 75 71 / 0.04), 0 4px 16px rgb(79 75 71 / 0.04);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--app-bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+::selection {
+  background: var(--accent-soft);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+
+/* ── Shared component classes ─────────────────────────────── */
+@layer components {
+  .field {
+    @apply w-full rounded-xl border border-line bg-card px-3 py-2 text-[14px] text-ink outline-none transition placeholder:text-muted/70 focus:border-accent/60 focus:ring-2 focus:ring-accent-soft;
+  }
+  .field-select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23918A82' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 14px;
+  }
+  .card {
+    @apply rounded-2xl border border-line bg-card shadow-soft;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] leading-5;
+  }
+}
