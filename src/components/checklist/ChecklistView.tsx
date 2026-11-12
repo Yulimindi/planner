@@ -1,17 +1,24 @@
 import { useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { CalendarDays, ChevronDown, ChevronUp, GripVertical, ListChecks, Plus, Trash2, X } from 'lucide-react'
+import { CalendarDays, CheckCheck, ChevronDown, ChevronUp, GripVertical, ListChecks, Plus, Trash2, X } from 'lucide-react'
 import { db } from '../../db/db'
 import { addChecklistItem, deleteChecklistItem, reorderChecklist, updateChecklistItem } from '../../db/repo'
 import type { Category, ChecklistItem } from '../../db/types'
 import { getPastel, wash } from '../../lib/colors'
 import { useDragSort } from '../../lib/hooks'
-import { cn, moveItem, todayISO } from '../../lib/utils'
+import { cn, formatDate, moveItem, todayISO } from '../../lib/utils'
 import { Button, IconButton, Panel, Spinner } from '../ui'
 import { useFeedback } from '../ui/Feedback'
 import { useCanEdit } from '../share/ShareModal'
 
-type Show = 'all' | 'active' | 'done'
+type Show = 'all' | 'active' | 'today'
+
+const startOfToday = () => new Date().setHours(0, 0, 0, 0)
+
+/** 오늘 끝낸 항목인지 (어제 이전에 끝낸 항목은 아래 '완료한 항목'으로 빠진다) */
+const doneToday = (i: ChecklistItem) => i.done && !!i.completedAt && i.completedAt >= startOfToday()
+
+const hhmm = (ts: number) => new Date(ts).toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })
 
 function dueLabel(due: string): { text: string; tone: 'late' | 'soon' | 'normal' } {
   const today = todayISO()
@@ -29,8 +36,17 @@ export function ChecklistView({ category }: { category: Category }) {
   const [text, setText] = useState('')
   const [due, setDue] = useState('')
   const [show, setShow] = useState<Show>('all')
-  const ids = useMemo(() => items?.map((i) => i.id) ?? [], [items])
-  const drag = useDragSort(ids, (next) => run(() => reorderChecklist(next)))
+  const [archiveOpen, setArchiveOpen] = useState(true)
+  // 위쪽 목록: 진행 중 + 오늘 끝낸 항목. 그 전에 끝낸 항목은 아래 칸으로 빠진다
+  const main = useMemo(() => items?.filter((i) => !i.done || doneToday(i)) ?? [], [items])
+  const finished = useMemo(
+    () => (items?.filter((i) => i.done && !doneToday(i)) ?? []).sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0)),
+    [items],
+  )
+  const ids = useMemo(() => main.map((i) => i.id), [main])
+  // 순서를 바꿀 때는 위쪽 목록 안에서만 움직이고, 완료한 항목은 그 뒤에 그대로 둔다
+  const reorder = (next: string[]) => run(() => reorderChecklist([...next, ...finished.map((i) => i.id)]))
+  const drag = useDragSort(ids, reorder)
   const p = getPastel(category.color)
   const canEdit = useCanEdit()
 
@@ -38,7 +54,9 @@ export function ChecklistView({ category }: { category: Category }) {
 
   const done = items.filter((i) => i.done).length
   const pct = items.length ? Math.round((done / items.length) * 100) : 0
-  const visible = items.filter((i) => (show === 'all' ? true : show === 'done' ? i.done : !i.done))
+  const active = main.filter((i) => !i.done).length
+  const today = main.length - active
+  const visible = main.filter((i) => (show === 'all' ? true : show === 'today' ? i.done : !i.done))
 
   const add = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -68,7 +86,7 @@ export function ChecklistView({ category }: { category: Category }) {
         bodyClassName="pb-2"
         action={
           <div className="flex items-center gap-1 text-[13.5px]">
-            {([['all', `전체 ${items.length}`], ['active', `진행 중 ${items.length - done}`], ['done', `완료 ${done}`]] as const).map(([v, label]) => (
+            {([['all', `전체 ${main.length}`], ['active', `진행 중 ${active}`], ['today', `오늘 완료 ${today}`]] as const).map(([v, label]) => (
               <button
                 key={v}
                 type="button"
@@ -103,7 +121,7 @@ export function ChecklistView({ category }: { category: Category }) {
         {items.length === 0 ? (
           <p className="py-12 text-center text-[13.5px] text-muted">아직 할 일이 없어요. 위 입력창에서 첫 번째 할 일을 추가해 보세요.</p>
         ) : visible.length === 0 ? (
-          <p className="py-12 text-center text-[13.5px] text-muted">{show === 'done' ? '완료한 항목이 없어요.' : '모든 항목을 완료했어요.'}</p>
+          <p className="py-12 text-center text-[13.5px] text-muted">{show === 'today' ? '오늘 끝낸 항목이 없어요.' : '남은 할 일이 없어요.'}</p>
         ) : (
           <fieldset disabled={!canEdit} className="min-w-0">
             <ul className="divide-y divide-line">
@@ -118,13 +136,38 @@ export function ChecklistView({ category }: { category: Category }) {
                   over={drag.overId === item.id && drag.dragId !== item.id}
                   onMove={(dir) => {
                     const i = ids.indexOf(item.id)
-                    run(() => reorderChecklist(moveItem(ids, i, i + dir)))
+                    reorder(moveItem(ids, i, i + dir))
                   }}
                   canReorder={show === 'all' && canEdit}
                 />
               ))}
             </ul>
           </fieldset>
+        )}
+
+        {/* 어제 이전에 끝낸 항목: 별도 칸 */}
+        {finished.length > 0 && (
+          <div className="mt-3 border-t border-line pt-3">
+            <button
+              type="button"
+              onClick={() => setArchiveOpen((v) => !v)}
+              aria-expanded={archiveOpen}
+              className="-mx-2 flex w-[calc(100%+16px)] items-center gap-2 rounded-[var(--radius-ctl)] px-2 py-2 text-left text-[13.5px] text-muted transition hover:bg-hover/60 hover:text-ink"
+            >
+              <CheckCheck size={16} />
+              <span className="flex-1 font-semibold text-ink-2">완료한 항목 <span className="font-normal text-muted tabular-nums">{finished.length}</span></span>
+              {archiveOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </button>
+            {archiveOpen && (
+              <fieldset disabled={!canEdit} className="min-w-0">
+                <ul className="divide-y divide-line">
+                  {finished.map((item) => (
+                    <ChecklistRow key={item.id} item={item} index={-1} total={0} dragProps={{}} dragging={false} over={false} onMove={() => {}} canReorder={false} />
+                  ))}
+                </ul>
+              </fieldset>
+            )}
+          </div>
         )}
       </Panel>
 
@@ -232,6 +275,11 @@ function ChecklistRow({ item, index, total, dragProps, dragging, over, onMove, c
           <button type="button" onClick={() => { setDraft(item.text); setEditing(true) }} className="w-full text-left">
             <span className={cn('text-[14px] break-words', item.done && 'text-muted line-through decoration-muted/50')}>{item.text}</span>
           </button>
+        )}
+        {item.done && !editing && (
+          <span className="mt-0.5 mr-3 inline-flex items-center gap-1 text-[12px] text-muted">
+            <CheckCheck size={12} /> {item.completedAt ? (doneToday(item) ? `오늘 ${hhmm(item.completedAt)} 완료` : `${formatDate(item.completedAt)} 완료`) : '완료'}
+          </span>
         )}
         {due && !editing && (
           <span className={cn('mt-0.5 inline-flex items-center gap-1 text-[12px]', item.done ? 'text-muted/70' : due.tone === 'late' ? 'text-danger' : due.tone === 'soon' ? 'text-[#A3826A]' : 'text-muted')}>
