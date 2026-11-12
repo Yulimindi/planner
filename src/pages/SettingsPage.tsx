@@ -109,7 +109,7 @@ export default function SettingsPage() {
         title="Settings"
         description="앱 이름, 테마, 데이터 백업과 복원을 관리해요."
       />
-      <div className="grid items-start gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
         <Card icon={<UserRound size={19} strokeWidth={1.6} />} title="프로필" desc="친구, 쪽지, 공유한 페이지에서 상대방에게 보이는 모습이에요." wide>
           {user && <ProfileEditor user={user} />}
         </Card>
@@ -138,7 +138,7 @@ export default function SettingsPage() {
         </Card>
 
         <Card icon={<Palette size={19} strokeWidth={1.6} />} title="테마" desc="상단의 해/달 버튼으로도 밝은·어두운 테마를 바로 바꿀 수 있어요." wide>
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             {THEMES.map((t) => (
               <button
                 key={t.id}

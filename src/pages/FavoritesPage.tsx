@@ -34,7 +34,7 @@ export default function FavoritesPage() {
       ) : memos.length === 0 ? (
         <EmptyState icon={<Star size={22} />} title="즐겨찾기한 메모가 없어요" description="메모 카드의 별표를 눌러 자주 보는 메모를 모아보세요." />
       ) : view === 'grid' ? (
-        <div className="grid items-start gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 items-start gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {memos.map((m) => (
             <MemoCard key={m.id} memo={m} category={m.categoryId ? cats.get(m.categoryId) : null} showCategory />
           ))}

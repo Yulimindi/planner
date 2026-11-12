@@ -118,7 +118,7 @@ export default function HomePage() {
       )}
 
       {/* 최근 · 즐겨찾기 */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Panel
           icon={<Clock3 size={20} strokeWidth={1.6} style={{ color: getPastel('pink').fg }} />}
           title={recentTab === 'created' ? '최근 작성한 메모' : '최근 수정한 메모'}

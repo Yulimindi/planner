@@ -80,7 +80,7 @@ export function ChecklistView({ category }: { category: Category }) {
   const C = 2 * Math.PI * R
 
   return (
-    <div className="grid items-start gap-6 @4xl:grid-cols-[minmax(0,1fr)_320px]">
+    <div className="grid grid-cols-1 items-start gap-6 @4xl:grid-cols-[minmax(0,1fr)_320px]">
       <Panel
         icon={<ListChecks size={20} strokeWidth={1.6} style={{ color: p.fg }} />}
         title="할 일 목록"

@@ -139,7 +139,7 @@ function MemoEditor({ memo, category, access }: { memo: Memo; category: Category
       )}
 
       <div className="@container">
-      <div className="grid items-start gap-6 @4xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid grid-cols-1 items-start gap-6 @4xl:grid-cols-[minmax(0,1fr)_320px]">
         {/* 본문 */}
         <fieldset disabled={!canEdit} className="card min-w-0 px-6 py-7 sm:px-10 sm:py-9">
           {isGallery && <div className="mb-7">{images}</div>}

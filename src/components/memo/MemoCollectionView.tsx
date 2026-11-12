@@ -89,7 +89,7 @@ export function MemoCollectionView({ category, embedded = false }: { category: C
     </div>
   )
   const noteGrid = notes.length > 0 && (
-    <div className="grid items-start gap-4 @xl:grid-cols-2 @4xl:grid-cols-3">
+    <div className="grid grid-cols-1 items-start gap-4 @xl:grid-cols-2 @4xl:grid-cols-3">
       {notes.map((m) => <MemoCard key={m.id} memo={m} />)}
     </div>
   )

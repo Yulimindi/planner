@@ -264,7 +264,7 @@ export default function MessagesPage() {
         }
       />
 
-      <div className="grid items-start gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
         {/* 목록 (모바일에서는 쪽지를 열면 숨김) */}
         <Panel
           className={cn(current && 'hidden xl:flex')}
