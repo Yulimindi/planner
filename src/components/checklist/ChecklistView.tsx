@@ -34,7 +34,8 @@ export function ChecklistView({ category }: { category: Category }) {
   const items = useLiveQuery(() => db.checklist.where('categoryId').equals(category.id).sortBy('order'), [category.id])
   const { run, confirm } = useFeedback()
   const [text, setText] = useState('')
-  const [due, setDue] = useState('')
+  // 목표 날짜는 따로 고르지 않으면 오늘
+  const [due, setDue] = useState(todayISO)
   const [show, setShow] = useState<Show>('all')
   const [archiveOpen, setArchiveOpen] = useState(true)
   // 위쪽 목록: 진행 중 + 오늘 끝낸 항목. 그 전에 끝낸 항목은 아래 칸으로 빠진다
@@ -61,9 +62,9 @@ export function ChecklistView({ category }: { category: Category }) {
   const add = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!text.trim()) return
-    await run(() => addChecklistItem(category.id, text, due || null))
+    await run(() => addChecklistItem(category.id, text, due || todayISO()))
     setText('')
-    setDue('')
+    setDue(todayISO())
   }
 
   const clearDone = async () => {
