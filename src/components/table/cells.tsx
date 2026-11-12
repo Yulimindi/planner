@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Check, ImagePlus, Loader2, X } from 'lucide-react'
 import type { Aggregate, CellValue, Column, Row } from '../../db/types'
-import { getPastel } from '../../lib/colors'
-import { cn, displayUrl, isSafeUrl, normalizeUrl } from '../../lib/utils'
-import { deleteImage } from '../../db/repo'
+import { getPastel, PASTELS } from '../../lib/colors'
+import { cn, displayUrl, isSafeUrl, normalizeUrl, uid } from '../../lib/utils'
+import { deleteImage, updateColumn } from '../../db/repo'
 import { SafeLink, StoredImage, useImagePicker } from '../memo/MemoParts'
 
 /* ── 값 <-> 텍스트 ───────────────────────────────────────── */
@@ -175,25 +175,7 @@ export function CellInput({ col, value, onCommit, onDone, inline, autoFocus }: {
     case 'image':
       return <ImageCellInput value={value} onCommit={onCommit} />
     case 'select':
-      return (
-        <select
-          ref={ref}
-          value={typeof value === 'string' ? value : ''}
-          onChange={(e) => {
-            committed.current = true
-            onCommit(e.target.value || null)
-            onDone?.()
-          }}
-          onBlur={() => onDone?.()}
-          onKeyDown={(e) => e.key === 'Escape' && onDone?.()}
-          className={cn(base, 'field-select cursor-pointer pr-8')}
-        >
-          <option value="">선택 안 함</option>
-          {col.options.map((o) => (
-            <option key={o.id} value={o.id}>{o.label}</option>
-          ))}
-        </select>
-      )
+      return <SelectCellInput col={col} value={value} onCommit={onCommit} onDone={onDone} base={base} selectRef={ref} />
     case 'date':
       return (
         <input
@@ -276,5 +258,103 @@ function ImageCellInput({ value, onCommit }: { value: CellValue | undefined; onC
         </button>
       )}
     </div>
+  )
+}
+
+const NEW_OPTION = '__new__'
+
+/** 선택 항목 셀: 목록에서 고르거나, 맨 아래 '새 선택지 추가'로 바로 만들어 고른다 */
+function SelectCellInput({ col, value, onCommit, onDone, base, selectRef }: {
+  col: Column
+  value: CellValue | undefined
+  onCommit: (v: CellValue) => void
+  onDone?: () => void
+  base: string
+  selectRef: React.RefObject<HTMLSelectElement | null>
+}) {
+  const [adding, setAdding] = useState(false)
+  const [label, setLabel] = useState('')
+  // 입력창으로 바뀌는 순간의 blur로 편집이 끝나지 않도록
+  const switching = useRef(false)
+  // Enter 뒤 입력창이 사라지며 생기는 blur로 두 번 저장되지 않도록
+  const saving = useRef(false)
+
+  const startAdding = () => {
+    switching.current = true
+    saving.current = false
+    setLabel('')
+    setAdding(true)
+  }
+  const cancel = () => {
+    saving.current = true
+    setAdding(false)
+    onDone?.()
+  }
+  const save = async () => {
+    if (saving.current) return
+    saving.current = true
+    const name = label.trim()
+    if (!name) return cancel()
+    const existing = col.options.find((o) => o.label === name)
+    let id = existing?.id
+    if (!id) {
+      id = uid()
+      await updateColumn(col.id, {
+        options: [...col.options, { id, label: name, color: PASTELS[col.options.length % PASTELS.length].id }],
+      })
+    }
+    setAdding(false)
+    onCommit(id)
+    onDone?.()
+  }
+
+  if (adding) {
+    return (
+      <div className="flex items-center gap-1.5">
+        <input
+          autoFocus
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              void save()
+            } else if (e.key === 'Escape') cancel()
+          }}
+          onBlur={() => void save()}
+          placeholder="새 선택지 이름"
+          maxLength={60}
+          className={cn(base, 'min-w-0 flex-1')}
+          aria-label="새 선택지 이름"
+        />
+      </div>
+    )
+  }
+
+  return (
+    <select
+      ref={selectRef}
+      value={typeof value === 'string' ? value : ''}
+      onChange={(e) => {
+        if (e.target.value === NEW_OPTION) return startAdding()
+        onCommit(e.target.value || null)
+        onDone?.()
+      }}
+      onBlur={() => {
+        if (switching.current) {
+          switching.current = false
+          return
+        }
+        onDone?.()
+      }}
+      onKeyDown={(e) => e.key === 'Escape' && onDone?.()}
+      className={cn(base, 'field-select cursor-pointer pr-8')}
+    >
+      <option value="">선택 안 함</option>
+      {col.options.map((o) => (
+        <option key={o.id} value={o.id}>{o.label}</option>
+      ))}
+      <option value={NEW_OPTION}>＋ 새 선택지 추가…</option>
+    </select>
   )
 }
