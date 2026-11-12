@@ -15,6 +15,7 @@ import { CategoryIconBadge } from '../components/category/CategoryForm'
 import NotFoundPage from './NotFoundPage'
 import { UserName } from '../components/user/UserBits'
 import { CursorLayer, PeerAvatars, usePresence } from '../components/share/presence'
+import { ChatToggleButton, useSharePeers } from '../components/share/SharedChat'
 import type { AccessInfo, Category } from '../db/types'
 
 export default function MemoPage() {
@@ -40,6 +41,7 @@ function MemoEditor({ memo, category, access }: { memo: Memo; category: Category
   const canEdit = access?.role !== 'view'
   const isShared = !!access && (access.role !== 'owner' || access.members.length > 0)
   const peers = usePresence(category?.id, isShared, location.pathname)
+  useSharePeers(peers)
   const navigate = useNavigate()
   const { confirm, run } = useFeedback()
   const [title, setTitle] = useState(memo.title)
@@ -123,6 +125,7 @@ function MemoEditor({ memo, category, access }: { memo: Memo; category: Category
           {saved === 'saving' ? '저장 중…' : saved === 'saved' ? <><Check size={14} /> 저장됨</> : null}
         </span>
         <PeerAvatars peers={peers} />
+        <ChatToggleButton className="h-10 rounded-full! shadow-soft" />
         {canEdit && <FavoriteButton memo={memo} className="size-10 rounded-full! border border-line bg-card/90 shadow-soft" />}
       </div>
 
@@ -135,7 +138,8 @@ function MemoEditor({ memo, category, access }: { memo: Memo; category: Category
         <div className="mb-4 rounded-[var(--radius-card)] border border-line bg-side px-5 py-3 text-[13.5px] text-muted">보관된 메모예요. 일반 목록에서는 숨겨져 있어요.</div>
       )}
 
-      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="@container">
+      <div className="grid items-start gap-6 @4xl:grid-cols-[minmax(0,1fr)_320px]">
         {/* 본문 */}
         <fieldset disabled={!canEdit} className="card min-w-0 px-6 py-7 sm:px-10 sm:py-9">
           {isGallery && <div className="mb-7">{images}</div>}
@@ -215,6 +219,7 @@ function MemoEditor({ memo, category, access }: { memo: Memo; category: Category
             </div>
           )}
         </aside>
+      </div>
       </div>
       {isShared && <CursorLayer peers={peers} />}
     </div>

@@ -10,6 +10,7 @@ import { syncState } from '../../sync/engine'
 import { Avatar, UserName } from '../user/UserBits'
 import { useProfileSync } from '../../sync/profiles'
 import { PAGE_CONTAINER_ID } from '../share/presence'
+import { SharedChatProvider } from '../share/SharedChat'
 import { useFriends, useFriendsSync } from '../../sync/friends'
 import { useMessagesSync, useUnreadMessages } from '../../sync/messages'
 import { MiniMailboxHost, toggleMiniMailbox, useMiniMailboxOpen } from '../messages/MiniMailboxHost'
@@ -377,7 +378,9 @@ export function AppLayout() {
             )}
             <div id={PAGE_CONTAINER_ID} className="relative mx-auto w-full max-w-[1480px] px-4 py-6 sm:px-8 md:px-10 md:py-8 xl:pr-10 xl:pl-16">
               <TopBar />
-              <Outlet />
+              <SharedChatProvider>
+                <Outlet />
+              </SharedChatProvider>
             </div>
           </main>
         </div>
