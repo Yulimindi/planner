@@ -333,6 +333,9 @@ export function AppLayout() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = settings.theme
+    // 설치한 앱의 상단 상태 표시줄 색을 테마 배경에 맞춘다
+    const bg = getComputedStyle(document.documentElement).getPropertyValue('--app-bg').trim()
+    if (bg) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bg)
     document.title = settings.appName
   }, [settings.theme, settings.appName])
 
