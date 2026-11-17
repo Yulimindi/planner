@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable, type Table } from 'dexie'
-import type { AccessInfo, Category, ChecklistItem, Column, ImageRecord, Memo, Row, SettingRecord } from './types'
+import type { AccessInfo, CalendarEvent, Category, ChecklistItem, Column, ImageRecord, Memo, Row, SettingRecord } from './types'
 import { buildSeed } from './seed'
 
 export class ArchiveDB extends Dexie {
@@ -8,6 +8,7 @@ export class ArchiveDB extends Dexie {
   columns!: EntityTable<Column, 'id'>
   rows!: EntityTable<Row, 'id'>
   checklist!: EntityTable<ChecklistItem, 'id'>
+  events!: EntityTable<CalendarEvent, 'id'>
   images!: EntityTable<ImageRecord, 'id'>
   settings!: EntityTable<SettingRecord, 'key'>
   access!: EntityTable<AccessInfo, 'categoryId'>
@@ -26,6 +27,10 @@ export class ArchiveDB extends Dexie {
     // v2: 계정 동기화 — 카테고리별 권한 정보(서버에서 받아오는 로컬 전용 테이블)
     this.version(2).stores({
       access: 'categoryId',
+    })
+    // v3: 캘린더 일정
+    this.version(3).stores({
+      events: 'id, categoryId, date',
     })
   }
 }

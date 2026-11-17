@@ -64,12 +64,18 @@ export function useCategoryCounts(): Record<string, number> {
       const add = (id: string | null) => {
         if (id) counts[id] = (counts[id] ?? 0) + 1
       }
-      // 표·체크리스트에 함께 적은 메모는 행/항목 개수에 섞지 않는다
-      const listTypes = new Set<string>()
-      await db.categories.each((c) => { if (c.type === 'table' || c.type === 'checklist') listTypes.add(c.id) })
-      await db.memos.each((m) => { if (!m.archived && !(m.categoryId && listTypes.has(m.categoryId))) add(m.categoryId) })
-      await db.rows.each((r) => add(r.categoryId))
-      await db.checklist.each((i) => add(i.categoryId))
+      // 페이지 형식의 주 항목만 센다 (표·체크리스트·캘린더에 함께 적은 메모, 형식을 바꾸기 전에 남은 데이터는 섞지 않음)
+      const typeOf = new Map<string, Category['type']>()
+      await db.categories.each((c) => { typeOf.set(c.id, c.type) })
+      const memoTypes = new Set<Category['type'] | undefined>(['note', 'gallery'])
+      await db.memos.each((m) => {
+        if (m.archived) return
+        if (!m.categoryId) add(null)
+        else if (memoTypes.has(typeOf.get(m.categoryId))) add(m.categoryId)
+      })
+      await db.rows.each((r) => { if (typeOf.get(r.categoryId) === 'table') add(r.categoryId) })
+      await db.checklist.each((i) => { if (typeOf.get(i.categoryId) === 'checklist') add(i.categoryId) })
+      await db.events.each((e) => { if (typeOf.get(e.categoryId) === 'calendar') add(e.categoryId) })
       return counts
     }, []) ?? {}
   )

@@ -43,7 +43,7 @@ export function MoveMemoSelect({ memo, className, compact, afterMove }: {
     else if (converts && target) navigate(`/c/${target.id}`)
   }
 
-  const groups = (['note', 'gallery', 'table', 'checklist'] as const)
+  const groups = (['note', 'gallery', 'calendar', 'table', 'checklist'] as const)
     .map((t) => ({ type: t, items: cats.filter((c) => c.type === t) }))
     .filter((g) => g.items.length)
 

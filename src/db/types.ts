@@ -1,4 +1,4 @@
-export type CategoryType = 'note' | 'table' | 'checklist' | 'gallery'
+export type CategoryType = 'note' | 'table' | 'checklist' | 'gallery' | 'calendar'
 export type ViewMode = 'table' | 'list' | 'gallery'
 export type ColumnType = 'text' | 'number' | 'date' | 'checkbox' | 'select' | 'url' | 'image'
 export type Aggregate = 'none' | 'sum' | 'avg' | 'min' | 'max' | 'count'
@@ -13,6 +13,8 @@ export interface Category {
   order: number
   archived: boolean
   viewMode: ViewMode
+  /** 형식과 상관없이 페이지에 캘린더를 함께 보여줄지 (형식이 calendar면 항상 보임) */
+  calendar?: boolean
   createdAt: number
   updatedAt: number
 }
@@ -76,6 +78,23 @@ export interface ChecklistItem {
   completedAt: number | null
 }
 
+/** 캘린더 일정. date ~ endDate(포함)까지 이어지는 하루 이상의 일정 */
+export interface CalendarEvent {
+  id: string
+  categoryId: string
+  title: string
+  /** YYYY-MM-DD */
+  date: string
+  /** YYYY-MM-DD, 없으면 하루 일정 */
+  endDate: string | null
+  /** HH:MM, 없으면 종일 */
+  time: string | null
+  note: string
+  color: string
+  createdAt: number
+  updatedAt: number
+}
+
 export interface ImageRecord {
   id: string
   blob: Blob
@@ -127,6 +146,7 @@ export const CATEGORY_TYPE_LABEL: Record<CategoryType, string> = {
   table: '표 / 데이터베이스',
   checklist: '체크리스트',
   gallery: '갤러리',
+  calendar: '캘린더',
 }
 
 export const COLUMN_TYPE_LABEL: Record<ColumnType, string> = {

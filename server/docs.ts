@@ -1,7 +1,7 @@
 import { db, tx, type Q } from './db.ts'
 import { HttpError } from './auth.ts'
 
-export const TABLES = ['categories', 'memos', 'columns', 'rows', 'checklist'] as const
+export const TABLES = ['categories', 'memos', 'columns', 'rows', 'checklist', 'events'] as const
 export type Tbl = (typeof TABLES)[number]
 export type Role = 'owner' | 'edit' | 'view'
 
@@ -195,7 +195,7 @@ export async function syncPayload(userId: string) {
   const shared = await db.all<{ id: string }>('SELECT category_id AS id FROM shares WHERE user_id = ?', [userId])
   const catIds = [...new Set([...own, ...shared].map((r) => r.id))]
 
-  const docs: Record<Tbl, Json[]> = { categories: [], memos: [], columns: [], rows: [], checklist: [] }
+  const docs: Record<Tbl, Json[]> = { categories: [], memos: [], columns: [], rows: [], checklist: [], events: [] }
   const push = (rows: DocRow[]) => {
     for (const r of rows) docs[r.tbl as Tbl]?.push(JSON.parse(r.data) as Json)
   }

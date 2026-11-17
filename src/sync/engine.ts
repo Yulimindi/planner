@@ -11,7 +11,7 @@ import { db, seedDefaults } from '../db/db'
 import type { AccessInfo, ImageRecord } from '../db/types'
 import { CLIENT_ID, ApiError, api, type AuthUser } from './api'
 
-export const SYNCED = ['categories', 'memos', 'columns', 'rows', 'checklist', 'settings'] as const
+export const SYNCED = ['categories', 'memos', 'columns', 'rows', 'checklist', 'events', 'settings'] as const
 export type SyncTable = (typeof SYNCED)[number]
 
 type Json = Record<string, unknown>

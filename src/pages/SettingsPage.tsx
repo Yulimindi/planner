@@ -197,7 +197,7 @@ export default function SettingsPage() {
               <p className="mb-1 font-medium">{pending.fileName}</p>
               <p className="text-[12px] text-muted">내보낸 날짜: {new Date(pending.backup.exportedAt).toLocaleString('ko-KR')}</p>
               <p className="mt-2 text-[13px] text-muted">
-                카테고리 {pending.summary.categories} · 메모 {pending.summary.memos} · 표 행 {pending.summary.rows} · 체크리스트 {pending.summary.checklist} · 이미지 {pending.summary.images}
+                카테고리 {pending.summary.categories} · 메모 {pending.summary.memos} · 표 행 {pending.summary.rows} · 체크리스트 {pending.summary.checklist} · 일정 {pending.summary.events} · 이미지 {pending.summary.images}
               </p>
             </div>
             <ul className="space-y-2 text-[13px] text-muted">

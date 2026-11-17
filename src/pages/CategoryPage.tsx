@@ -19,6 +19,7 @@ import { useCategoryActions } from '../components/category/useCategoryActions'
 import { useUI } from '../components/layout/AppLayout'
 import { TableView } from '../components/table/TableView'
 import { ChecklistView } from '../components/checklist/ChecklistView'
+import { CalendarView } from '../components/calendar/CalendarView'
 import { MemoCollectionView } from '../components/memo/MemoCollectionView'
 import { CanEditContext, ROLE_LABEL, ShareModal } from '../components/share/ShareModal'
 import { CursorLayer, PeerAvatars, usePresence } from '../components/share/presence'
@@ -80,7 +81,7 @@ export default function CategoryPage() {
             <LayoutGrid size={15} strokeWidth={1.7} />
             <Link to={isOwner ? '/categories' : '/'} className="hover:text-ink">{isOwner ? 'My Categories' : 'Shared with me'}</Link>
             <ChevronRight size={14} className="text-muted" />
-            <span>{CATEGORY_TYPE_LABEL[category.type]}</span>
+            <span>{CATEGORY_TYPE_LABEL[category.type]}{category.type !== 'calendar' && category.calendar ? ' + 캘린더' : ''}</span>
           </p>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
             <CategoryIconBadge cat={category} size={72} />
@@ -128,18 +129,22 @@ export default function CategoryPage() {
         </section>
 
         <div className="min-w-0 @container">
-          {category.type === 'table' ? (
+          {category.type === 'calendar' ? (
             <>
-              <TableView category={category} />
+              <CalendarView category={category} />
               <MemoCollectionView category={category} embedded />
             </>
-          ) : category.type === 'checklist' ? (
+          ) : category.type === 'table' || category.type === 'checklist' ? (
             <>
-              <ChecklistView category={category} />
+              {category.type === 'table' ? <TableView category={category} /> : <ChecklistView category={category} />}
+              {category.calendar && <CalendarView category={category} className="mt-10" />}
               <MemoCollectionView category={category} embedded />
             </>
           ) : (
-            <MemoCollectionView category={category} />
+            <>
+              {category.calendar && <CalendarView category={category} className="mb-10" />}
+              <MemoCollectionView category={category} />
+            </>
           )}
         </div>
         {isShared && <CursorLayer peers={peers} />}

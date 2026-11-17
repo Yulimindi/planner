@@ -1,6 +1,6 @@
 import { db, seedDefaults } from './db'
 import { clearLocalSynced, ensureImage, fullSync, isSyncActive, resetRemoteOwnData, uploadImage } from '../sync/engine'
-import type { Category, ChecklistItem, Column, ImageRecord, Memo, Row, SettingRecord } from './types'
+import type { CalendarEvent, Category, ChecklistItem, Column, ImageRecord, Memo, Row, SettingRecord } from './types'
 
 export const BACKUP_FORMAT = 'my-archive-backup'
 export const BACKUP_VERSION = 1
@@ -23,6 +23,8 @@ export interface BackupFile {
     columns: Column[]
     rows: Row[]
     checklist: ChecklistItem[]
+    /** 캘린더 기능 이전 백업에는 없다 */
+    events?: CalendarEvent[]
     settings: SettingRecord[]
     images: ImageExport[]
   }
@@ -33,6 +35,7 @@ export interface BackupSummary {
   memos: number
   rows: number
   checklist: number
+  events: number
   images: number
 }
 
@@ -50,9 +53,9 @@ async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
 }
 
 export async function exportBackup(): Promise<Blob> {
-  const [allCats, allMemos, allCols, allRows, allChecks, settings, allImages, access] = await Promise.all([
+  const [allCats, allMemos, allCols, allRows, allChecks, allEvents, settings, allImages, access] = await Promise.all([
     db.categories.toArray(), db.memos.toArray(), db.columns.toArray(), db.rows.toArray(),
-    db.checklist.toArray(), db.settings.toArray(), db.images.toArray(), db.access.toArray(),
+    db.checklist.toArray(), db.events.toArray(), db.settings.toArray(), db.images.toArray(), db.access.toArray(),
   ])
   // 공유받은 카테고리는 내 백업에서 제외
   const foreign = new Set(access.filter((a) => a.role !== 'owner').map((a) => a.categoryId))
@@ -62,6 +65,7 @@ export async function exportBackup(): Promise<Blob> {
   const columns = mine(allCols)
   const rows = mine(allRows)
   const checklist = mine(allChecks)
+  const events = mine(allEvents)
   const imageCols = new Set(columns.filter((c) => c.type === 'image').map((c) => c.id))
   const usedImages = new Set<string>([
     ...memos.flatMap((m) => m.imageIds),
@@ -79,7 +83,7 @@ export async function exportBackup(): Promise<Blob> {
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
-    data: { categories, memos, columns, rows, checklist, settings, images: imgs },
+    data: { categories, memos, columns, rows, checklist, events, settings, images: imgs },
   }
   return new Blob([JSON.stringify(file)], { type: 'application/json' })
 }
@@ -117,8 +121,9 @@ export async function parseBackup(file: File): Promise<{ backup: BackupFile; sum
     const list = d[k]
     if (!isArr(list) || !list.every(hasId)) throw new Error(`백업 파일의 "${k}" 데이터가 손상되었습니다.`)
   }
+  if (d.events !== undefined && (!isArr(d.events) || !d.events.every(hasId))) throw new Error('백업 파일의 "events" 데이터가 손상되었습니다.')
   if (d.settings !== undefined && !isArr(d.settings)) throw new Error('백업 파일의 설정 데이터가 손상되었습니다.')
-  const backup = { ...b, data: { ...d, settings: d.settings ?? [] } } as BackupFile
+  const backup = { ...b, data: { ...d, events: d.events ?? [], settings: d.settings ?? [] } } as BackupFile
   return {
     backup,
     summary: {
@@ -126,6 +131,7 @@ export async function parseBackup(file: File): Promise<{ backup: BackupFile; sum
       memos: d.memos.length,
       rows: d.rows.length,
       checklist: d.checklist.length,
+      events: d.events?.length ?? 0,
       images: d.images.length,
     },
   }
@@ -153,12 +159,13 @@ export async function importBackup(backup: BackupFile, mode: 'replace' | 'merge'
   if (isSyncActive()) {
     for (const img of images) await uploadImage(img).catch(() => undefined)
   }
-  await db.transaction('rw', [db.categories, db.memos, db.columns, db.rows, db.checklist, db.images, db.settings], async () => {
+  await db.transaction('rw', [db.categories, db.memos, db.columns, db.rows, db.checklist, db.events, db.images, db.settings], async () => {
     await db.categories.bulkPut(d.categories)
     await db.memos.bulkPut(d.memos)
     await db.columns.bulkPut(d.columns)
     await db.rows.bulkPut(d.rows)
     await db.checklist.bulkPut(d.checklist)
+    await db.events.bulkPut(d.events ?? [])
     await db.images.bulkPut(images)
     if (mode === 'replace' || !(await db.settings.get('app'))) await db.settings.bulkPut(d.settings)
   })

@@ -13,6 +13,7 @@ export const ITEM_UNIT: Record<CategoryType, string> = {
   gallery: '카드',
   table: '항목',
   checklist: '할 일',
+  calendar: '일정',
 }
 
 export function CategoryCard({ cat, count, dragging, over, sub }: {

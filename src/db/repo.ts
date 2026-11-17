@@ -1,6 +1,6 @@
 import { db } from './db'
 import type {
-  AppSettings, CategoryType, Category, CellValue, ChecklistItem, Column, ColumnType, Memo, Row, ViewMode,
+  AppSettings, CalendarEvent, CategoryType, Category, CellValue, ChecklistItem, Column, ColumnType, Memo, Row, ViewMode,
 } from './types'
 import { DEFAULT_SETTINGS } from './types'
 import { buildColumns } from './seed'
@@ -31,6 +31,7 @@ export interface CategoryInput {
   icon: string
   color: string
   type: CategoryType
+  calendar?: boolean
 }
 
 export async function createCategory(input: CategoryInput): Promise<string> {
@@ -42,21 +43,35 @@ export async function createCategory(input: CategoryInput): Promise<string> {
       id, ...input, name: input.name.trim(), order: (last?.order ?? -1) + 1,
       archived: false, viewMode: 'table', createdAt: t, updatedAt: t,
     })
-    if (input.type === 'table') {
-      await db.columns.bulkAdd(
-        buildColumns(id, [
-          { name: '이름', type: 'text' },
-          { name: '메모', type: 'text' },
-          { name: '완료', type: 'checkbox' },
-        ]),
-      )
-    }
+    if (input.type === 'table') await addDefaultColumns(id)
   })
   return id
 }
 
+const addDefaultColumns = (categoryId: string) =>
+  db.columns.bulkAdd(
+    buildColumns(categoryId, [
+      { name: '이름', type: 'text' },
+      { name: '메모', type: 'text' },
+      { name: '완료', type: 'checkbox' },
+    ]),
+  )
+
 export async function updateCategory(id: string, patch: Partial<Omit<Category, 'id' | 'type'>>) {
   await db.categories.update(id, { ...patch, updatedAt: now() })
+}
+
+/**
+ * 이미 만든 페이지의 형식을 바꾼다.
+ * 이전 형식의 데이터(표 행, 할 일, 일정)는 지우지 않고 남겨 두므로 다시 되돌리면 그대로 보인다.
+ */
+export async function changeCategoryType(id: string, type: CategoryType) {
+  await db.transaction('rw', db.categories, db.columns, async () => {
+    const cat = await db.categories.get(id)
+    if (!cat || cat.type === type) return
+    if (type === 'table' && (await db.columns.where('categoryId').equals(id).count()) === 0) await addDefaultColumns(id)
+    await db.categories.update(id, { type, updatedAt: now() })
+  })
 }
 
 /** 보기 방식은 사용자별 설정에 저장 (공유받은 카테고리에서도 각자 기억) */
@@ -80,13 +95,15 @@ export async function countCategoryItems(cat: Category): Promise<number> {
       return db.rows.where('categoryId').equals(cat.id).count()
     case 'checklist':
       return db.checklist.where('categoryId').equals(cat.id).count()
+    case 'calendar':
+      return db.events.where('categoryId').equals(cat.id).count()
   }
 }
 
 const stringIds = (vals: unknown[]): string[] => vals.filter((v): v is string => typeof v === 'string' && !!v)
 
 export async function deleteCategory(id: string) {
-  await db.transaction('rw', [db.categories, db.memos, db.columns, db.rows, db.checklist, db.images], async () => {
+  await db.transaction('rw', [db.categories, db.memos, db.columns, db.rows, db.checklist, db.events, db.images], async () => {
     const memos = await db.memos.where('categoryId').equals(id).toArray()
     const cols = await db.columns.where('categoryId').equals(id).toArray()
     const rows = await db.rows.where('categoryId').equals(id).toArray()
@@ -100,6 +117,7 @@ export async function deleteCategory(id: string) {
     await db.columns.where('categoryId').equals(id).delete()
     await db.rows.where('categoryId').equals(id).delete()
     await db.checklist.where('categoryId').equals(id).delete()
+    await db.events.where('categoryId').equals(id).delete()
     await db.categories.delete(id)
   })
 }
@@ -136,7 +154,7 @@ export async function deleteMemo(id: string) {
 export async function moveMemoToCategory(memoId: string, target: Category | null) {
   const memo = await db.memos.get(memoId)
   if (!memo) throw new Error('메모를 찾을 수 없습니다.')
-  if (!target || target.type === 'note' || target.type === 'gallery') {
+  if (!target || target.type === 'note' || target.type === 'gallery' || target.type === 'calendar') {
     await db.memos.update(memoId, { categoryId: target?.id ?? null, updatedAt: now() })
     return
   }
@@ -352,4 +370,30 @@ export async function reorderChecklist(ids: string[]) {
   await db.transaction('rw', db.checklist, async () => {
     await Promise.all(ids.map((id, i) => db.checklist.update(id, { order: i })))
   })
+}
+
+/* ── Calendar events ────────────────────────────────────── */
+export type EventInput = Pick<CalendarEvent, 'title' | 'date' | 'endDate' | 'time' | 'note' | 'color'>
+
+const cleanEvent = (e: EventInput): EventInput => ({
+  ...e,
+  title: e.title.trim(),
+  note: e.note.trim(),
+  endDate: e.endDate && e.endDate > e.date ? e.endDate : null,
+  time: e.time || null,
+})
+
+export async function addEvent(categoryId: string, input: EventInput): Promise<string> {
+  const id = uid()
+  const t = now()
+  await db.events.add({ id, categoryId, ...cleanEvent(input), createdAt: t, updatedAt: t })
+  return id
+}
+
+export async function updateEvent(id: string, input: EventInput) {
+  await db.events.update(id, { ...cleanEvent(input), updatedAt: now() })
+}
+
+export async function deleteEvent(id: string) {
+  await db.events.delete(id)
 }
