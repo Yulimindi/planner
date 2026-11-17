@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { CalendarDays, CheckSquare, ChevronLeft, ChevronRight, Clock, Plus, Trash2 } from 'lucide-react'
+import { CalendarDays, CheckSquare, ChevronLeft, ChevronRight, Clock, Pencil, Plus, Trash2 } from 'lucide-react'
 import { db } from '../../db/db'
-import { addEvent, deleteEvent, updateEvent, updateChecklistItem, type EventInput } from '../../db/repo'
-import { categoryTypes, type CalendarEvent, type Category, type ChecklistItem } from '../../db/types'
-import { PASTELS, getPastel, tint, wash } from '../../lib/colors'
-import { cn, todayISO } from '../../lib/utils'
+import { addEvent, deleteEvent, setEventLabels, updateEvent, updateChecklistItem, type EventInput } from '../../db/repo'
+import { categoryTypes, type CalendarEvent, type Category, type ChecklistItem, type EventLabel } from '../../db/types'
+import { LABEL_COLORS, PASTELS, getPastel, swatch, wash } from '../../lib/colors'
+import { cn, todayISO, uid } from '../../lib/utils'
 import { Button, IconButton, Input, Label, Modal, Panel, Segmented, Select, Spinner, Textarea } from '../ui'
 import { useFeedback } from '../ui/Feedback'
 import { useCanEdit } from '../share/ShareModal'
@@ -61,6 +61,9 @@ export function CalendarView({ category, className }: { category: Category; clas
   })
   const [editing, setEditing] = useState<CalendarEvent | 'new' | null>(null)
   const p = getPastel(category.color)
+  const labels = category.eventLabels ?? []
+  const labelOf = (e: CalendarEvent) => (e.labelId ? labels.find((l) => l.id === e.labelId) : undefined)
+  const colorOf = (e: CalendarEvent) => swatch(labelOf(e)?.color ?? e.color)
 
   const cells = useMemo(() => monthCells(cursor.y, cursor.m), [cursor])
   const monthPrefix = `${cursor.y}-${pad(cursor.m + 1)}`
@@ -152,7 +155,7 @@ export function CalendarView({ category, className }: { category: Category; clas
                 {/* 좁은 화면: 점 */}
                 {total > 0 && (
                   <span className="flex justify-center gap-0.5 @2xl:hidden">
-                    {[...evs.map((e) => getPastel(e.color).fg), ...tds.map(() => 'var(--muted)')].slice(0, 3).map((c, k) => (
+                    {[...evs.map((e) => colorOf(e).fg), ...tds.map(() => 'var(--muted)')].slice(0, 3).map((c, k) => (
                       <span key={k} className="size-1.5 rounded-full" style={{ background: c }} />
                     ))}
                   </span>
@@ -163,7 +166,7 @@ export function CalendarView({ category, className }: { category: Category; clas
                     <span
                       key={e.id}
                       className="truncate rounded px-1.5 py-px text-[11.5px] leading-[18px]"
-                      style={{ background: tint(e.color), color: getPastel(e.color).fg }}
+                      style={{ background: colorOf(e).bg, color: colorOf(e).fg }}
                     >
                       {e.time && e.date === day && <span className="mr-1 tabular-nums opacity-80">{e.time}</span>}
                       {e.title}
@@ -180,6 +183,16 @@ export function CalendarView({ category, className }: { category: Category; clas
             )
           })}
         </div>
+        {labels.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-ink-2">
+            {labels.map((l) => (
+              <span key={l.id} className="inline-flex items-center gap-1.5">
+                <span className="size-2.5 rounded-full" style={{ background: l.color }} />
+                {l.name}
+              </span>
+            ))}
+          </div>
+        )}
       </Panel>
 
       {/* 선택한 날 */}
@@ -198,7 +211,7 @@ export function CalendarView({ category, className }: { category: Category; clas
           <ul className="space-y-2">
             {dayEvents.map((e) => (
               <li key={e.id}>
-                <EventRow event={e} onOpen={() => setEditing(e)} />
+                <EventRow event={e} label={labelOf(e)} color={colorOf(e).fg} onOpen={() => setEditing(e)} />
               </li>
             ))}
             {dayTodos.map((t) => (
@@ -216,7 +229,7 @@ export function CalendarView({ category, className }: { category: Category; clas
               {upcoming.map((e) => (
                 <li key={e.id}>
                   <button type="button" onClick={() => pick(e.date < today ? today : e.date)} className="-mx-2 flex w-[calc(100%+16px)] items-center gap-2 rounded-[var(--radius-ctl)] px-2 py-1.5 text-left text-[13.5px] transition hover:bg-hover/60">
-                    <span className="size-2 shrink-0 rounded-full" style={{ background: getPastel(e.color).fg }} />
+                    <span className="size-2 shrink-0 rounded-full" style={{ background: colorOf(e).fg }} />
                     <span className="min-w-0 flex-1 truncate text-ink-2">{e.title}</span>
                     <span className="shrink-0 text-[12.5px] text-muted tabular-nums">{e.date.slice(5).replace('-', '.')}</span>
                   </button>
@@ -232,6 +245,7 @@ export function CalendarView({ category, className }: { category: Category; clas
         event={editing === 'new' ? null : editing}
         defaultDate={selected}
         defaultColor={category.color}
+        labels={labels}
         categoryId={category.id}
         canEdit={canEdit}
         onClose={() => setEditing(null)}
@@ -240,18 +254,18 @@ export function CalendarView({ category, className }: { category: Category; clas
   )
 }
 
-function EventRow({ event, onOpen }: { event: CalendarEvent; onOpen: () => void }) {
-  const c = getPastel(event.color)
+function EventRow({ event, label, color, onOpen }: { event: CalendarEvent; label?: EventLabel; color: string; onOpen: () => void }) {
   return (
     <button
       type="button"
       onClick={onOpen}
       className="flex w-full gap-3 rounded-[var(--radius-ctl)] border border-line px-3 py-2.5 text-left transition hover:bg-hover/60"
     >
-      <span className="w-1 shrink-0 self-stretch rounded-full" style={{ background: c.fg }} />
+      <span className="w-1 shrink-0 self-stretch rounded-full" style={{ background: color }} />
       <span className="min-w-0 flex-1">
         <span className="block text-[14px] font-medium break-words text-ink">{event.title}</span>
         <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[12px] text-muted">
+          {label && <span className="font-medium" style={{ color }}>{label.name}</span>}
           <span className="inline-flex items-center gap-1"><Clock size={12} />{event.time ? timeLabel(event.time) : '종일'}</span>
           {event.endDate && <span className="tabular-nums">{event.date.slice(5).replace('-', '.')} ~ {event.endDate.slice(5).replace('-', '.')}</span>}
         </span>
@@ -276,6 +290,96 @@ function TodoRow({ item, canEdit }: { item: ChecklistItem; canEdit: boolean }) {
       <span className={cn('min-w-0 flex-1 break-words', item.done && 'text-muted line-through')}>{item.text}</span>
       <CheckSquare size={14} className="shrink-0 text-muted" aria-label="할 일" />
     </label>
+  )
+}
+
+function LabelChip({ color, active, onClick, children }: { color?: string; active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        'inline-flex h-8 max-w-full items-center gap-1.5 rounded-full border px-3 text-[13px] transition',
+        active ? 'font-medium text-ink' : 'border-line text-ink-2 hover:bg-hover',
+      )}
+      style={active ? { borderColor: color ?? 'var(--line-strong)', background: color ? swatch(color).bg : 'var(--hover)' } : undefined}
+    >
+      {color && <span className="size-2.5 shrink-0 rounded-full" style={{ background: color }} />}
+      <span className="truncate">{children}</span>
+    </button>
+  )
+}
+
+/** 분류 이름 + 색 (자주 쓰는 색 또는 직접 고른 색) */
+function LabelForm({ initial, taken, onSave, onCancel, onDelete }: {
+  initial: EventLabel | null
+  taken: string[]
+  onSave: (data: Omit<EventLabel, 'id'>) => void
+  onCancel: () => void
+  onDelete?: () => void
+}) {
+  const [name, setName] = useState(initial?.name ?? '')
+  const [color, setColor] = useState(initial?.color ?? LABEL_COLORS[0].color)
+  const [error, setError] = useState('')
+  const custom = !LABEL_COLORS.some((c) => c.color.toLowerCase() === color.toLowerCase())
+
+  const save = () => {
+    const n = name.trim()
+    if (!n) return setError('분류 이름을 입력해 주세요.')
+    if (taken.includes(n)) return setError('같은 이름의 분류가 이미 있어요.')
+    onSave({ name: n, color })
+  }
+
+  return (
+    <div className="mt-2 space-y-3 rounded-[var(--radius-ctl)] border border-line bg-side/50 p-3">
+      <div>
+        <Input
+          value={name}
+          onChange={(e) => { setName(e.target.value); setError('') }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { e.preventDefault(); save() }
+          }}
+          placeholder="예: 기념일"
+          maxLength={20}
+          autoFocus
+          className="h-9"
+          aria-label="분류 이름"
+        />
+        {error && <p className="mt-1 text-[12px] text-danger">{error}</p>}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {LABEL_COLORS.map((c) => (
+          <button
+            key={c.color}
+            type="button"
+            title={c.name}
+            aria-label={c.name}
+            aria-pressed={color === c.color}
+            onClick={() => setColor(c.color)}
+            className={cn('size-7 rounded-full border-2 transition', color === c.color ? 'scale-110 border-ink/50' : 'border-transparent')}
+            style={{ background: c.color }}
+          />
+        ))}
+        <label
+          title="직접 고르기"
+          className={cn(
+            'relative flex size-7 cursor-pointer items-center justify-center overflow-hidden rounded-full border-2 transition',
+            custom ? 'scale-110 border-ink/50' : 'border-transparent',
+          )}
+          style={{ background: custom ? color : 'conic-gradient(#D9534F, #CFA727, #4E9A6B, #4A7FC1, #7A62C2, #D9534F)' }}
+        >
+          <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="absolute inset-0 cursor-pointer opacity-0" aria-label="색 직접 고르기" />
+        </label>
+      </div>
+      <div className="flex items-center gap-2">
+        {onDelete && (
+          <Button size="sm" variant="ghost" className="mr-auto text-danger" icon={<Trash2 size={13} />} onClick={onDelete}>지우기</Button>
+        )}
+        <Button size="sm" className="ml-auto" onClick={onCancel}>취소</Button>
+        <Button size="sm" variant="primary" onClick={save}>{initial ? '저장' : '분류 추가'}</Button>
+      </div>
+    </div>
   )
 }
 
@@ -321,28 +425,32 @@ function TimePicker({ value, onChange }: { value: string | null; onChange: (v: s
   )
 }
 
-function EventModal({ open, event, defaultDate, defaultColor, categoryId, canEdit, onClose }: {
+function EventModal({ open, event, defaultDate, defaultColor, labels, categoryId, canEdit, onClose }: {
   open: boolean
   event: CalendarEvent | null
   defaultDate: string
   defaultColor: string
+  labels: EventLabel[]
   categoryId: string
   canEdit: boolean
   onClose: () => void
 }) {
   const { run, confirm } = useFeedback()
   // 폼에서는 끝 날짜를 항상 채워 둔다 (하루 일정이면 시작과 같은 날). 저장할 때 같은 날이면 null로 되돌린다
-  const [form, setForm] = useState<EventInput & { endDate: string }>({ title: '', date: defaultDate, endDate: defaultDate, time: null, note: '', color: defaultColor })
+  const [form, setForm] = useState<EventInput & { endDate: string }>({ title: '', date: defaultDate, endDate: defaultDate, time: null, note: '', color: defaultColor, labelId: null })
   const [error, setError] = useState('')
+  /** 분류를 새로 만들거나 고치는 중 */
+  const [labelEdit, setLabelEdit] = useState<EventLabel | 'new' | null>(null)
 
   useEffect(() => {
     if (!open) return
     setForm(
       event
-        ? { title: event.title, date: event.date, endDate: event.endDate ?? event.date, time: event.time, note: event.note, color: event.color }
-        : { title: '', date: defaultDate, endDate: defaultDate, time: null, note: '', color: defaultColor },
+        ? { title: event.title, date: event.date, endDate: event.endDate ?? event.date, time: event.time, note: event.note, color: event.color, labelId: event.labelId ?? null }
+        : { title: '', date: defaultDate, endDate: defaultDate, time: null, note: '', color: defaultColor, labelId: null },
     )
     setError('')
+    setLabelEdit(null)
   }, [open, event, defaultDate, defaultColor])
 
   const set = (patch: Partial<typeof form>) => {
@@ -371,6 +479,39 @@ function EventModal({ open, event, defaultDate, defaultColor, categoryId, canEdi
       event ? '일정을 수정했어요.' : '일정을 추가했어요.',
     )
     if (ok) onClose()
+  }
+
+  const currentLabel = labels.find((l) => l.id === form.labelId)
+
+  /** 분류는 페이지 전체에 저장되므로 일정 저장과 상관없이 바로 반영 */
+  const saveLabel = async (data: Omit<EventLabel, 'id'>) => {
+    const editing = labelEdit !== 'new' && labelEdit
+    const id = editing ? editing.id : uid()
+    const next = editing ? labels.map((l) => (l.id === id ? { ...l, ...data } : l)) : [...labels, { id, ...data }]
+    const ok = await run(async () => {
+      await setEventLabels(categoryId, next)
+      return true
+    })
+    if (!ok) return
+    setLabelEdit(null)
+    set({ labelId: id })
+  }
+
+  const removeLabel = async (label: EventLabel) => {
+    const ok = await confirm({
+      title: `'${label.name}' 분류를 지울까요?`,
+      message: '이 분류를 쓰던 일정은 지워지지 않고, 분류 없이 지금 색 그대로 남아요.',
+      confirmText: '지우기',
+      danger: true,
+    })
+    if (!ok) return
+    const done = await run(async () => {
+      await setEventLabels(categoryId, labels.filter((l) => l.id !== label.id))
+      return true
+    }, '분류를 지웠어요.')
+    if (!done) return
+    setLabelEdit(null)
+    if (form.labelId === label.id) set({ labelId: null, color: label.color })
   }
 
   const remove = async () => {
@@ -421,22 +562,57 @@ function EventModal({ open, event, defaultDate, defaultColor, categoryId, canEdi
             <TimePicker value={form.time} onChange={(time) => set({ time })} />
           </div>
           <div>
-            <Label>색</Label>
-            <div className="flex flex-wrap gap-2">
-              {PASTELS.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  title={c.name}
-                  aria-label={c.name}
-                  aria-pressed={form.color === c.id}
-                  onClick={() => set({ color: c.id })}
-                  className={cn('size-8 rounded-full border-2 transition', form.color === c.id ? 'scale-110 border-ink/40' : 'border-transparent')}
-                  style={{ background: c.bg }}
-                />
+            <Label hint={currentLabel ? '색은 분류를 따라가요' : undefined}>분류</Label>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <LabelChip active={!form.labelId} onClick={() => set({ labelId: null })}>없음</LabelChip>
+              {labels.map((l) => (
+                <LabelChip key={l.id} color={l.color} active={form.labelId === l.id} onClick={() => set({ labelId: l.id })}>{l.name}</LabelChip>
               ))}
+              {canEdit && labelEdit === null && (
+                <button
+                  type="button"
+                  onClick={() => setLabelEdit('new')}
+                  className="inline-flex h-8 items-center gap-1 rounded-full border border-dashed border-line-strong px-3 text-[13px] text-muted transition hover:bg-hover hover:text-ink"
+                >
+                  <Plus size={13} /> 새 분류
+                </button>
+              )}
             </div>
+            {canEdit && currentLabel && labelEdit === null && (
+              <button type="button" onClick={() => setLabelEdit(currentLabel)} className="mt-1.5 inline-flex items-center gap-1 text-[12.5px] text-muted hover:text-ink">
+                <Pencil size={12} /> '{currentLabel.name}' 분류 고치기
+              </button>
+            )}
+            {labelEdit !== null && (
+              <LabelForm
+                key={labelEdit === 'new' ? 'new' : labelEdit.id}
+                initial={labelEdit === 'new' ? null : labelEdit}
+                taken={labels.filter((l) => labelEdit === 'new' || l.id !== labelEdit.id).map((l) => l.name)}
+                onCancel={() => setLabelEdit(null)}
+                onSave={saveLabel}
+                onDelete={labelEdit === 'new' ? undefined : () => removeLabel(labelEdit)}
+              />
+            )}
           </div>
+          {!currentLabel && (
+            <div>
+              <Label>색</Label>
+              <div className="flex flex-wrap gap-2">
+                {PASTELS.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    title={c.name}
+                    aria-label={c.name}
+                    aria-pressed={form.color === c.id}
+                    onClick={() => set({ color: c.id })}
+                    className={cn('size-8 rounded-full border-2 transition', form.color === c.id ? 'scale-110 border-ink/40' : 'border-transparent')}
+                    style={{ background: c.bg }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
           <div>
             <Label hint="선택">메모</Label>
             <Textarea value={form.note} onChange={(e) => set({ note: e.target.value })} className="min-h-20" placeholder="장소, 준비물 등" maxLength={1000} />

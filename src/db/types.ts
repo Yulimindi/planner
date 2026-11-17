@@ -17,6 +17,8 @@ export interface Category {
   extraTypes?: CategoryType[]
   /** @deprecated extraTypes 이전 데이터: 캘린더를 함께 쓰는지 */
   calendar?: boolean
+  /** 캘린더 일정 분류 (예: 기념일 = 빨강). 편집 권한이 있는 공유 멤버도 고칠 수 있다 */
+  eventLabels?: EventLabel[]
   createdAt: number
   updatedAt: number
 }
@@ -80,6 +82,13 @@ export interface ChecklistItem {
   completedAt: number | null
 }
 
+/** 사용자가 직접 만드는 일정 분류. color는 '#RRGGBB' */
+export interface EventLabel {
+  id: string
+  name: string
+  color: string
+}
+
 /** 캘린더 일정. date ~ endDate(포함)까지 이어지는 하루 이상의 일정 */
 export interface CalendarEvent {
   id: string
@@ -92,7 +101,10 @@ export interface CalendarEvent {
   /** HH:MM, 없으면 종일 */
   time: string | null
   note: string
+  /** 분류가 없을 때 쓰는 색 (파스텔 id 또는 '#RRGGBB') */
   color: string
+  /** 분류가 있으면 색은 분류를 따른다 (분류 색을 바꾸면 모든 일정이 함께 바뀜) */
+  labelId?: string | null
   createdAt: number
   updatedAt: number
 }

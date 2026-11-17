@@ -1,6 +1,6 @@
 import { db } from './db'
 import type {
-  AppSettings, CalendarEvent, CategoryType, Category, CellValue, ChecklistItem, Column, ColumnType, Memo, Row, ViewMode,
+  AppSettings, CalendarEvent, CategoryType, Category, CellValue, ChecklistItem, Column, ColumnType, EventLabel, Memo, Row, ViewMode,
 } from './types'
 import { DEFAULT_SETTINGS } from './types'
 import { buildColumns } from './seed'
@@ -381,7 +381,22 @@ export async function reorderChecklist(ids: string[]) {
 }
 
 /* ── Calendar events ────────────────────────────────────── */
-export type EventInput = Pick<CalendarEvent, 'title' | 'date' | 'endDate' | 'time' | 'note' | 'color'>
+export type EventInput = Pick<CalendarEvent, 'title' | 'date' | 'endDate' | 'time' | 'note' | 'color' | 'labelId'>
+
+/** 일정 분류 목록 저장. 지운 분류를 쓰던 일정은 분류 없음 + 그 분류 색으로 남긴다 */
+export async function setEventLabels(categoryId: string, labels: EventLabel[]) {
+  await db.transaction('rw', db.categories, db.events, async () => {
+    const cat = await db.categories.get(categoryId)
+    if (!cat) return
+    const kept = new Set(labels.map((l) => l.id))
+    for (const old of cat.eventLabels ?? []) {
+      if (kept.has(old.id)) continue
+      await db.events.where('categoryId').equals(categoryId).filter((e) => e.labelId === old.id)
+        .modify({ labelId: null, color: old.color, updatedAt: now() })
+    }
+    await db.categories.update(categoryId, { eventLabels: labels, updatedAt: now() })
+  })
+}
 
 const cleanEvent = (e: EventInput): EventInput => ({
   ...e,
@@ -389,6 +404,7 @@ const cleanEvent = (e: EventInput): EventInput => ({
   note: e.note.trim(),
   endDate: e.endDate && e.endDate > e.date ? e.endDate : null,
   time: e.time || null,
+  labelId: e.labelId || null,
 })
 
 export async function addEvent(categoryId: string, input: EventInput): Promise<string> {

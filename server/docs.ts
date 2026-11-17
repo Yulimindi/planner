@@ -44,6 +44,11 @@ export async function audienceOf(categoryId: string | null, owner: string, q: Q 
   return [catOwner, ...shared.map((s) => s.user_id)]
 }
 
+/** 캘린더 일정 분류만 고치는 수정인가 (편집 권한이 있는 공유 멤버도 할 수 있음) */
+const LABEL_KEYS = new Set(['eventLabels', 'updatedAt'])
+const isLabelPatch = (op: Op): boolean =>
+  op.op === 'patch' && Object.keys(op.mods).length > 0 && Object.keys(op.mods).every((k) => LABEL_KEYS.has(k.split('.')[0]))
+
 /** keypath('a.b')를 지원하는 병합 (Dexie update의 mods 형식) */
 function applyMods(target: Json, mods: Json): Json {
   const out: Json = structuredClone(target)
@@ -121,7 +126,7 @@ export function applyOps(userId: string, ops: Op[]): Promise<{ applied: Applied[
       if (existing) {
         const ok =
           t === 'categories'
-            ? existing.owner === userId
+            ? existing.owner === userId || (isLabelPatch(op) && canWrite(await role(op.id)))
             : existing.category_id
               ? canWrite(await role(existing.category_id))
               : existing.owner === userId

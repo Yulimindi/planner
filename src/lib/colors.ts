@@ -34,6 +34,26 @@ export const wash = (id: string | undefined): string =>
 export const washLine = (id: string | undefined): string =>
   `color-mix(in srgb, ${getPastel(id).bg} var(--tint-line), var(--line))`
 
+/** 일정 분류에 고를 수 있는 또렷한 색 (직접 고른 색도 쓸 수 있음) */
+export const LABEL_COLORS: { color: string; name: string }[] = [
+  { color: '#D9534F', name: '빨강' },
+  { color: '#E0823D', name: '주황' },
+  { color: '#CFA727', name: '노랑' },
+  { color: '#4E9A6B', name: '초록' },
+  { color: '#3F9AA8', name: '청록' },
+  { color: '#4A7FC1', name: '파랑' },
+  { color: '#7A62C2', name: '보라' },
+  { color: '#D0649A', name: '분홍' },
+  { color: '#8C7B6B', name: '갈색' },
+  { color: '#80868F', name: '회색' },
+]
+
+/** 파스텔 id('pink')나 '#RRGGBB' 어느 쪽이든 글자색(fg)과 옅은 배경(bg)으로 */
+export function swatch(color: string | undefined): { fg: string; bg: string } {
+  if (color?.startsWith('#')) return { fg: color, bg: `color-mix(in srgb, ${color} 16%, var(--card-bg))` }
+  return { fg: getPastel(color).fg, bg: tint(color) }
+}
+
 /** 태그 이름마다 고정된 파스텔 (같은 태그는 항상 같은 색) */
 export function tagPastel(tag: string): PastelColor {
   let h = 0
