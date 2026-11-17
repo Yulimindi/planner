@@ -3,10 +3,10 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { CalendarDays, CheckSquare, ChevronLeft, ChevronRight, Clock, Plus, Trash2 } from 'lucide-react'
 import { db } from '../../db/db'
 import { addEvent, deleteEvent, updateEvent, updateChecklistItem, type EventInput } from '../../db/repo'
-import type { CalendarEvent, Category, ChecklistItem } from '../../db/types'
+import { categoryTypes, type CalendarEvent, type Category, type ChecklistItem } from '../../db/types'
 import { PASTELS, getPastel, tint, wash } from '../../lib/colors'
 import { cn, todayISO } from '../../lib/utils'
-import { Button, IconButton, Input, Label, Modal, Panel, Spinner, Textarea } from '../ui'
+import { Button, IconButton, Input, Label, Modal, Panel, Segmented, Select, Spinner, Textarea } from '../ui'
 import { useFeedback } from '../ui/Feedback'
 import { useCanEdit } from '../share/ShareModal'
 
@@ -47,9 +47,10 @@ function monthCells(year: number, month: number): string[] {
 export function CalendarView({ category, className }: { category: Category; className?: string }) {
   const events = useLiveQuery(() => db.events.where('categoryId').equals(category.id).toArray(), [category.id])
   // 체크리스트 페이지에 캘린더를 함께 쓰면 목표 날짜가 있는 할 일도 보여준다
+  const hasChecklist = categoryTypes(category).includes('checklist')
   const todos = useLiveQuery(
-    async () => (category.type === 'checklist' ? (await db.checklist.where('categoryId').equals(category.id).toArray()).filter((i) => i.dueDate) : []),
-    [category.id, category.type],
+    async () => (hasChecklist ? (await db.checklist.where('categoryId').equals(category.id).toArray()).filter((i) => i.dueDate) : []),
+    [category.id, hasChecklist],
   )
   const canEdit = useCanEdit()
   const today = todayISO()
@@ -278,6 +279,48 @@ function TodoRow({ item, canEdit }: { item: ChecklistItem; canEdit: boolean }) {
   )
 }
 
+const HOURS = Array.from({ length: 12 }, (_, i) => i + 1)
+const MINUTES = Array.from({ length: 12 }, (_, i) => i * 5)
+
+/** 종일 / 시간 지정 전환 + 오전·오후, 시, 분(5분 단위)을 각각 고르는 시간 선택 */
+function TimePicker({ value, onChange }: { value: string | null; onChange: (v: string | null) => void }) {
+  const [h24, m] = (value ?? '09:00').split(':').map(Number)
+  const pm = h24 >= 12
+  const h12 = h24 % 12 || 12
+  const emit = (next: { pm?: boolean; h12?: number; m?: number }) => {
+    const p = next.pm ?? pm
+    const h = (next.h12 ?? h12) % 12 + (p ? 12 : 0)
+    onChange(`${pad(h)}:${pad(next.m ?? m)}`)
+  }
+  // 예전에 5분 단위가 아닌 분으로 저장된 일정도 그대로 보이도록
+  const minutes = MINUTES.includes(m) ? MINUTES : [...MINUTES, m].sort((a, b) => a - b)
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Segmented<'allday' | 'time'>
+        value={value ? 'time' : 'allday'}
+        onChange={(v) => onChange(v === 'allday' ? null : (value ?? '09:00'))}
+        options={[{ value: 'allday', label: '종일' }, { value: 'time', label: '시간 지정' }]}
+      />
+      {value && (
+        <div className="flex items-center gap-1.5">
+          <Segmented<'am' | 'pm'>
+            value={pm ? 'pm' : 'am'}
+            onChange={(v) => emit({ pm: v === 'pm' })}
+            options={[{ value: 'am', label: '오전' }, { value: 'pm', label: '오후' }]}
+          />
+          <Select value={h12} onChange={(e) => emit({ h12: Number(e.target.value) })} className="h-9 w-auto min-w-[4.5rem] text-[13.5px] tabular-nums" aria-label="시">
+            {HOURS.map((h) => <option key={h} value={h}>{h}시</option>)}
+          </Select>
+          <Select value={m} onChange={(e) => emit({ m: Number(e.target.value) })} className="h-9 w-auto min-w-[4.5rem] text-[13.5px] tabular-nums" aria-label="분">
+            {minutes.map((x) => <option key={x} value={x}>{pad(x)}분</option>)}
+          </Select>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function EventModal({ open, event, defaultDate, defaultColor, categoryId, canEdit, onClose }: {
   open: boolean
   event: CalendarEvent | null
@@ -288,21 +331,27 @@ function EventModal({ open, event, defaultDate, defaultColor, categoryId, canEdi
   onClose: () => void
 }) {
   const { run, confirm } = useFeedback()
-  const [form, setForm] = useState<EventInput>({ title: '', date: defaultDate, endDate: null, time: null, note: '', color: defaultColor })
+  // 폼에서는 끝 날짜를 항상 채워 둔다 (하루 일정이면 시작과 같은 날). 저장할 때 같은 날이면 null로 되돌린다
+  const [form, setForm] = useState<EventInput & { endDate: string }>({ title: '', date: defaultDate, endDate: defaultDate, time: null, note: '', color: defaultColor })
   const [error, setError] = useState('')
 
   useEffect(() => {
     if (!open) return
     setForm(
       event
-        ? { title: event.title, date: event.date, endDate: event.endDate, time: event.time, note: event.note, color: event.color }
-        : { title: '', date: defaultDate, endDate: null, time: null, note: '', color: defaultColor },
+        ? { title: event.title, date: event.date, endDate: event.endDate ?? event.date, time: event.time, note: event.note, color: event.color }
+        : { title: '', date: defaultDate, endDate: defaultDate, time: null, note: '', color: defaultColor },
     )
     setError('')
   }, [open, event, defaultDate, defaultColor])
 
-  const set = (patch: Partial<EventInput>) => {
+  const set = (patch: Partial<typeof form>) => {
     setForm((f) => ({ ...f, ...patch }))
+    setError('')
+  }
+  /** 시작 날짜를 바꾸면, 하루 일정이었거나 끝이 시작보다 앞서게 될 때 끝 날짜도 따라간다 */
+  const setStart = (date: string) => {
+    setForm((f) => ({ ...f, date, endDate: !f.endDate || f.endDate === f.date || f.endDate < date ? date : f.endDate }))
     setError('')
   }
 
@@ -312,10 +361,11 @@ function EventModal({ open, event, defaultDate, defaultColor, categoryId, canEdi
     if (!form.title.trim()) return setError('일정 이름을 입력해 주세요.')
     if (!form.date) return setError('날짜를 골라 주세요.')
     if (form.endDate && form.endDate < form.date) return setError('끝나는 날은 시작하는 날보다 뒤여야 해요.')
+    const data: EventInput = { ...form, endDate: form.endDate && form.endDate !== form.date ? form.endDate : null }
     const ok = await run(
       async () => {
-        if (event) await updateEvent(event.id, form)
-        else await addEvent(categoryId, form)
+        if (event) await updateEvent(event.id, data)
+        else await addEvent(categoryId, data)
         return true
       },
       event ? '일정을 수정했어요.' : '일정을 추가했어요.',
@@ -359,16 +409,16 @@ function EventModal({ open, event, defaultDate, defaultColor, categoryId, canEdi
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>시작</Label>
-              <Input type="date" value={form.date} onChange={(e) => set({ date: e.target.value })} required />
+              <Input type="date" value={form.date} onChange={(e) => setStart(e.target.value)} required />
             </div>
             <div>
-              <Label hint="선택">끝</Label>
-              <Input type="date" value={form.endDate ?? ''} min={form.date} onChange={(e) => set({ endDate: e.target.value || null })} />
+              <Label hint={form.endDate === form.date ? '하루 일정' : undefined}>끝</Label>
+              <Input type="date" value={form.endDate} min={form.date} onChange={(e) => set({ endDate: e.target.value || form.date })} />
             </div>
           </div>
           <div>
-            <Label hint="비우면 종일">시간</Label>
-            <Input type="time" value={form.time ?? ''} onChange={(e) => set({ time: e.target.value || null })} className="w-40" />
+            <Label>시간</Label>
+            <TimePicker value={form.time} onChange={(time) => set({ time })} />
           </div>
           <div>
             <Label>색</Label>

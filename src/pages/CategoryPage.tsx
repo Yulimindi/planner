@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { Archive, ArchiveRestore, ChevronRight, Eye, LayoutGrid, LogOut, Pencil, Share2, Trash2, Users } from 'lucide-react'
 import { ChatToggleButton, useSharePeers } from '../components/share/SharedChat'
 import { db } from '../db/db'
-import { CATEGORY_TYPE_LABEL } from '../db/types'
+import { categoryTypes, categoryTypesLabel, type CategoryType } from '../db/types'
 import { Button, IconButton, Spinner } from '../components/ui'
 import { ITEM_UNIT } from '../components/category/CategoryCard'
 import { wash, washLine } from '../lib/colors'
@@ -52,6 +52,11 @@ export default function CategoryPage() {
   if (category === undefined) return <Spinner />
   if (category === null) return <NotFoundPage message="카테고리를 찾을 수 없어요." />
 
+  const types = categoryTypes(category)
+  const isMemoType = (t: CategoryType) => t === 'note' || t === 'gallery'
+  const hasMemoType = types.some(isMemoType)
+  const sections = types.filter((t) => !isMemoType(t) || t === types.find(isMemoType))
+
   const leave = async () => {
     if (!user) return
     const ok = await confirm({
@@ -81,7 +86,7 @@ export default function CategoryPage() {
             <LayoutGrid size={15} strokeWidth={1.7} />
             <Link to={isOwner ? '/categories' : '/'} className="hover:text-ink">{isOwner ? 'My Categories' : 'Shared with me'}</Link>
             <ChevronRight size={14} className="text-muted" />
-            <span>{CATEGORY_TYPE_LABEL[category.type]}{category.type !== 'calendar' && category.calendar ? ' + 캘린더' : ''}</span>
+            <span>{categoryTypesLabel(category)}</span>
           </p>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
             <CategoryIconBadge cat={category} size={72} />
@@ -129,23 +134,16 @@ export default function CategoryPage() {
         </section>
 
         <div className="min-w-0 @container">
-          {category.type === 'calendar' ? (
-            <>
-              <CalendarView category={category} />
-              <MemoCollectionView category={category} embedded />
-            </>
-          ) : category.type === 'table' || category.type === 'checklist' ? (
-            <>
-              {category.type === 'table' ? <TableView category={category} /> : <ChecklistView category={category} />}
-              {category.calendar && <CalendarView category={category} className="mt-10" />}
-              <MemoCollectionView category={category} embedded />
-            </>
-          ) : (
-            <>
-              {category.calendar && <CalendarView category={category} className="mb-10" />}
-              <MemoCollectionView category={category} />
-            </>
-          )}
+          {/* 고른 형식을 기본 형식부터 차례로. 일반 메모·갤러리는 메모 목록 하나로 합치고, 둘 다 없으면 맨 아래에 "함께 쓰는 메모" */}
+          {sections.map((t, i) => (
+            <div key={t} className={cn(i > 0 && 'mt-10')}>
+              {t === 'table' ? <TableView category={category} />
+                : t === 'checklist' ? <ChecklistView category={category} />
+                : t === 'calendar' ? <CalendarView category={category} />
+                : <MemoCollectionView category={category} />}
+            </div>
+          ))}
+          {!hasMemoType && <MemoCollectionView category={category} embedded />}
         </div>
         {isShared && <CursorLayer peers={peers} />}
         {isOwner && <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} category={category} />}

@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
-import { CalendarDays, CheckSquare, FileText, Image as ImageIcon, Table2 } from 'lucide-react'
+import { CalendarDays, Check, CheckSquare, FileText, Image as ImageIcon, Table2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Input, Label, Modal, Textarea } from '../ui'
 import { useFeedback } from '../ui/Feedback'
 import { CategoryIcon, ICON_NAMES } from '../../lib/icons'
 import { PASTELS, getPastel } from '../../lib/colors'
 import { cn } from '../../lib/utils'
-import { changeCategoryType, createCategory, updateCategory } from '../../db/repo'
-import type { Category, CategoryType } from '../../db/types'
+import { changeCategoryType, createCategory, ensureTableColumns, updateCategory } from '../../db/repo'
+import { categoryTypes, type Category, type CategoryType } from '../../db/types'
 
 const TYPES: { type: CategoryType; label: string; desc: string; icon: React.ReactNode }[] = [
   { type: 'note', label: '일반 메모', desc: '제목·본문 중심의 자유 기록', icon: <FileText size={18} /> },
@@ -41,9 +41,13 @@ export function CategoryFormModal({ open, onClose, category }: {
   const [description, setDescription] = useState('')
   const [icon, setIcon] = useState('sparkles')
   const [color, setColor] = useState('lavender')
-  const [type, setType] = useState<CategoryType>('note')
-  const [calendar, setCalendar] = useState(false)
+  /** 고른 형식들. 맨 앞이 기본 형식 */
+  const [types, setTypes] = useState<CategoryType[]>(['note'])
   const [error, setError] = useState('')
+  const type = types[0]
+  const toggleType = (t: CategoryType) =>
+    setTypes((cur) => (cur.includes(t) ? (cur.length > 1 ? cur.filter((x) => x !== t) : cur) : [...cur, t]))
+  const makePrimary = (t: CategoryType) => setTypes((cur) => [t, ...cur.filter((x) => x !== t)])
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -52,8 +56,7 @@ export function CategoryFormModal({ open, onClose, category }: {
     setDescription(category?.description ?? '')
     setIcon(category?.icon ?? 'sparkles')
     setColor(category?.color ?? PASTELS[Math.floor(Math.random() * PASTELS.length)].id)
-    setType(category?.type ?? 'note')
-    setCalendar(!!category?.calendar)
+    setTypes(category ? categoryTypes(category) : ['note'])
     setError('')
   }, [open, category])
 
@@ -68,10 +71,11 @@ export function CategoryFormModal({ open, onClose, category }: {
       return
     }
     setSaving(true)
-    const data = { name: name.trim(), description: description.trim(), icon, color, calendar: type !== 'calendar' && calendar }
+    const data = { name: name.trim(), description: description.trim(), icon, color, extraTypes: types.slice(1), calendar: false }
     if (category) {
       await run(async () => {
         if (type !== category.type) await changeCategoryType(category.id, type)
+        if (types.includes('table')) await ensureTableColumns(category.id)
         await updateCategory(category.id, data)
       }, '카테고리를 수정했어요.')
       setSaving(false)
@@ -128,41 +132,64 @@ export function CategoryFormModal({ open, onClose, category }: {
         </div>
 
         <div>
-          <Label>데이터 관리 형식</Label>
+          <Label hint="여러 개 선택 가능">데이터 관리 형식</Label>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {TYPES.map((t) => (
-              <button
-                key={t.type}
-                type="button"
-                onClick={() => setType(t.type)}
-                aria-pressed={type === t.type}
-                className={cn(
-                  'flex items-start gap-3 rounded-[var(--radius-ctl)] border p-3 text-left transition',
-                  type === t.type ? 'border-accent/60 bg-accent-soft/60' : 'border-line hover:bg-hover',
-                )}
-              >
-                <span className="mt-0.5 text-muted">{t.icon}</span>
-                <span>
-                  <span className="block text-[14px] font-medium">{t.label}</span>
-                  <span className="block text-[12px] text-muted">{t.desc}</span>
-                </span>
-              </button>
-            ))}
+            {TYPES.map((t) => {
+              const on = types.includes(t.type)
+              const primary = type === t.type
+              return (
+                <div
+                  key={t.type}
+                  className={cn(
+                    'relative flex rounded-[var(--radius-ctl)] border transition',
+                    on ? 'border-accent/60 bg-accent-soft/60' : 'border-line hover:bg-hover',
+                  )}
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleType(t.type)}
+                    aria-pressed={on}
+                    className={cn('flex min-w-0 flex-1 items-start gap-3 p-3 text-left', on && types.length > 1 && 'pr-20')}
+                  >
+                    <span
+                      className={cn(
+                        'mt-0.5 flex size-[18px] shrink-0 items-center justify-center rounded-[5px] border',
+                        on ? 'border-transparent bg-primary text-primary-ink' : 'border-line-strong text-transparent',
+                      )}
+                    >
+                      <Check size={13} strokeWidth={3} />
+                    </span>
+                    <span className="mt-0.5 text-muted">{t.icon}</span>
+                    <span className="min-w-0">
+                      <span className="block text-[14px] font-medium">{t.label}</span>
+                      <span className="block text-[12px] text-muted">{t.desc}</span>
+                    </span>
+                  </button>
+                  {on && types.length > 1 && (
+                    primary ? (
+                      <span className="absolute top-2 right-2 rounded-full bg-primary px-2 py-0.5 text-[11px] font-medium text-primary-ink">기본</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => makePrimary(t.type)}
+                        className="absolute top-2 right-2 rounded-full border border-line bg-card/80 px-2 py-0.5 text-[11px] text-muted hover:text-ink"
+                      >
+                        기본으로
+                      </button>
+                    )
+                  )}
+                </div>
+              )
+            })}
           </div>
-          {category && type !== category.type && (
+          <p className="mt-2 text-[12px] leading-relaxed text-muted">
+            고른 형식이 한 페이지에 함께 보여요. <b className="font-medium text-ink-2">기본</b> 형식이 맨 위에 보이고 항목 개수의 기준이 돼요.
+            {types.includes('calendar') && types.includes('checklist') ? ' 목표 날짜가 있는 할 일은 달력에도 보여요.' : ''}
+          </p>
+          {category && categoryTypes(category).some((t) => !types.includes(t)) && (
             <p className="mt-2 rounded-[var(--radius-ctl)] bg-side/60 px-3 py-2 text-[12.5px] leading-relaxed text-muted">
-              형식을 바꿔도 지금까지의 {TYPES.find((t) => t.type === category.type)?.label} 데이터는 지워지지 않아요.
-              다시 원래 형식으로 돌리면 그대로 보여요. 메모는 어느 형식에서나 함께 보여요.
+              형식을 빼도 지금까지 기록한 데이터는 지워지지 않아요. 다시 그 형식을 고르면 그대로 보여요.
             </p>
-          )}
-          {type !== 'calendar' && (
-            <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-[var(--radius-ctl)] border border-line p-3 transition hover:bg-hover">
-              <input type="checkbox" checked={calendar} onChange={(e) => setCalendar(e.target.checked)} className="mt-0.5 size-4 shrink-0 accent-[var(--accent)]" />
-              <span>
-                <span className="flex items-center gap-1.5 text-[14px] font-medium"><CalendarDays size={15} className="text-muted" /> 캘린더 함께 쓰기</span>
-                <span className="block text-[12px] text-muted">이 페이지에 월별 캘린더를 추가해 일정을 함께 기록해요.{type === 'checklist' ? ' 목표 날짜가 있는 할 일도 달력에 보여요.' : ''}</span>
-              </span>
-            </label>
           )}
         </div>
 

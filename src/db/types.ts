@@ -13,7 +13,9 @@ export interface Category {
   order: number
   archived: boolean
   viewMode: ViewMode
-  /** 형식과 상관없이 페이지에 캘린더를 함께 보여줄지 (형식이 calendar면 항상 보임) */
+  /** 기본 형식(type) 외에 함께 쓰는 형식들 */
+  extraTypes?: CategoryType[]
+  /** @deprecated extraTypes 이전 데이터: 캘린더를 함께 쓰는지 */
   calendar?: boolean
   createdAt: number
   updatedAt: number
@@ -141,6 +143,12 @@ export function memoKind(memo: Pick<Memo, 'kind'>, category: Pick<Category, 'typ
   return memo.kind ?? (category?.type === 'gallery' ? 'card' : 'note')
 }
 
+/** 이 페이지가 쓰는 모든 형식 (기본 형식이 맨 앞, 중복 없음) */
+export function categoryTypes(category: Pick<Category, 'type' | 'extraTypes' | 'calendar'>): CategoryType[] {
+  const list = [category.type, ...(category.extraTypes ?? []), ...(category.calendar ? (['calendar'] as const) : [])]
+  return [...new Set(list)]
+}
+
 export const CATEGORY_TYPE_LABEL: Record<CategoryType, string> = {
   note: '일반 메모',
   table: '표 / 데이터베이스',
@@ -148,6 +156,10 @@ export const CATEGORY_TYPE_LABEL: Record<CategoryType, string> = {
   gallery: '갤러리',
   calendar: '캘린더',
 }
+
+/** "표 / 데이터베이스 + 캘린더" 처럼 쓰는 형식을 모두 이어 붙인 이름 */
+export const categoryTypesLabel = (category: Pick<Category, 'type' | 'extraTypes' | 'calendar'>) =>
+  categoryTypes(category).map((t) => CATEGORY_TYPE_LABEL[t]).join(' + ')
 
 export const COLUMN_TYPE_LABEL: Record<ColumnType, string> = {
   text: '텍스트',

@@ -8,7 +8,7 @@ import { getPastel, tint } from '../lib/colors'
 import { CategoryIconBadge } from '../components/category/CategoryForm'
 import { useCategoryActions } from '../components/category/useCategoryActions'
 import { useUI } from '../components/layout/AppLayout'
-import { CATEGORY_TYPE_LABEL } from '../db/types'
+import { categoryTypesLabel } from '../db/types'
 import { cn, moveItem } from '../lib/utils'
 
 export default function CategoriesPage() {
@@ -57,7 +57,7 @@ export default function CategoriesPage() {
                   </div>
                 </Link>
                 <span className="hidden shrink-0 rounded-md px-2.5 py-1 text-[12.5px] leading-4 font-medium lg:inline-block" style={{ background: tint(c.color), color: getPastel(c.color).fg }}>
-                  {CATEGORY_TYPE_LABEL[c.type]}
+                  {categoryTypesLabel(c)}
                 </span>
                 <span className="hidden w-20 shrink-0 text-right text-[13.5px] text-muted tabular-nums sm:inline">
                   {counts[c.id] ?? 0}개 {ITEM_UNIT[c.type]}

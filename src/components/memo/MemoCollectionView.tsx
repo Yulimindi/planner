@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { FileText, Image as ImageIcon, Plus, Search, Star, StickyNote } from 'lucide-react'
 import { db } from '../../db/db'
 import { createMemo } from '../../db/repo'
-import { memoKind, type Category, type Memo, type MemoKind } from '../../db/types'
+import { categoryTypes, memoKind, type Category, type Memo, type MemoKind } from '../../db/types'
 import { cn, excerpt, mmdd } from '../../lib/utils'
 import { Button, EmptyState, Input, Segmented, Select, Spinner } from '../ui'
 import { useFeedback } from '../ui/Feedback'
@@ -20,7 +20,10 @@ type KindFilter = 'all' | MemoKind
  * 어느 카테고리든 카드와 메모를 섞어서 만들 수 있다.
  */
 export function MemoCollectionView({ category, embedded = false }: { category: Category; embedded?: boolean }) {
-  const isGallery = category.type === 'gallery'
+  // 일반 메모·갤러리 중 먼저 고른 쪽의 모양을 앞세운다
+  const isGallery = categoryTypes(category).find((t) => t === 'note' || t === 'gallery') === 'gallery'
+  // 모양을 따로 저장하지 않은 메모가 읽히는 모양 (기본 형식 기준)
+  const storedDefault = memoKind({}, category)
   const navigate = useNavigate()
   const { run } = useFeedback()
   const canEdit = useCanEdit()
@@ -57,8 +60,7 @@ export function MemoCollectionView({ category, embedded = false }: { category: C
 
   const create = async (k: MemoKind) => {
     // 카테고리 기본 모양과 같으면 kind를 비워 두어 기존 데이터와 같은 형태로 저장
-    const defaultKind = isGallery ? 'card' : 'note'
-    const id = await run(() => createMemo(category.id, k === defaultKind ? {} : { kind: k }))
+    const id = await run(() => createMemo(category.id, k === storedDefault ? {} : { kind: k }))
     if (id) navigate(`/memo/${id}`)
   }
 

@@ -31,6 +31,7 @@ export interface CategoryInput {
   icon: string
   color: string
   type: CategoryType
+  extraTypes?: CategoryType[]
   calendar?: boolean
 }
 
@@ -43,9 +44,16 @@ export async function createCategory(input: CategoryInput): Promise<string> {
       id, ...input, name: input.name.trim(), order: (last?.order ?? -1) + 1,
       archived: false, viewMode: 'table', createdAt: t, updatedAt: t,
     })
-    if (input.type === 'table') await addDefaultColumns(id)
+    if (input.type === 'table' || input.extraTypes?.includes('table')) await addDefaultColumns(id)
   })
   return id
+}
+
+/** 표 형식을 처음 쓰게 되면 기본 열을 만들어 둔다 */
+export async function ensureTableColumns(id: string) {
+  await db.transaction('rw', db.columns, async () => {
+    if ((await db.columns.where('categoryId').equals(id).count()) === 0) await addDefaultColumns(id)
+  })
 }
 
 const addDefaultColumns = (categoryId: string) =>

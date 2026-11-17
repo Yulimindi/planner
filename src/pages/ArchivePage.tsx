@@ -10,7 +10,7 @@ import { useFeedback } from '../components/ui/Feedback'
 import { CategoryIconBadge } from '../components/category/CategoryForm'
 import { useCategoryActions } from '../components/category/useCategoryActions'
 import { MemoListItem } from '../components/memo/MemoParts'
-import { CATEGORY_TYPE_LABEL } from '../db/types'
+import { categoryTypesLabel } from '../db/types'
 import { cn } from '../lib/utils'
 
 export default function ArchivePage() {
@@ -54,7 +54,7 @@ export default function ArchivePage() {
                     <CategoryIconBadge cat={c} size={48} />
                     <div className="min-w-0">
                       <p className="truncate text-[15.5px] font-semibold tracking-[-0.01em]">{c.name}</p>
-                      <p className="mt-0.5 text-[13.5px] text-muted">{CATEGORY_TYPE_LABEL[c.type]} · {counts[c.id] ?? 0}개</p>
+                      <p className="mt-0.5 text-[13.5px] text-muted">{categoryTypesLabel(c)} · {counts[c.id] ?? 0}개</p>
                     </div>
                   </Link>
                   <Button size="sm" icon={<ArchiveRestore size={15} />} onClick={() => restore(c)}>복원</Button>
