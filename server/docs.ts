@@ -46,8 +46,18 @@ export async function audienceOf(categoryId: string | null, owner: string, q: Q 
 
 /** 캘린더 일정 분류만 고치는 수정인가 (편집 권한이 있는 공유 멤버도 할 수 있음) */
 const LABEL_KEYS = new Set(['eventLabels', 'updatedAt'])
-const isLabelPatch = (op: Op): boolean =>
-  op.op === 'patch' && Object.keys(op.mods).length > 0 && Object.keys(op.mods).every((k) => LABEL_KEYS.has(k.split('.')[0]))
+/** keypath('a.b')로 값 꺼내기 */
+const getPath = (obj: Json, path: string): unknown =>
+  path.split('.').reduce<unknown>((cur, k) => (cur && typeof cur === 'object' ? (cur as Json)[k] : undefined), obj)
+/**
+ * Dexie는 배열 필드를 값이 같아도 바뀐 것으로 보내므로(예: extraTypes),
+ * 실제로 값이 바뀐 키만 따져서 분류(eventLabels) 외에는 바뀐 게 없는지 본다
+ */
+const isLabelPatch = (op: Op, existing: Json | null): boolean => {
+  if (op.op !== 'patch' || !existing) return false
+  const changed = Object.entries(op.mods).filter(([k, v]) => JSON.stringify(getPath(existing, k)) !== JSON.stringify(v))
+  return changed.every(([k]) => LABEL_KEYS.has(k.split('.')[0]))
+}
 
 /** keypath('a.b')를 지원하는 병합 (Dexie update의 mods 형식) */
 function applyMods(target: Json, mods: Json): Json {
@@ -126,7 +136,7 @@ export function applyOps(userId: string, ops: Op[]): Promise<{ applied: Applied[
       if (existing) {
         const ok =
           t === 'categories'
-            ? existing.owner === userId || (isLabelPatch(op) && canWrite(await role(op.id)))
+            ? existing.owner === userId || (isLabelPatch(op, existingData) && canWrite(await role(op.id)))
             : existing.category_id
               ? canWrite(await role(existing.category_id))
               : existing.owner === userId
